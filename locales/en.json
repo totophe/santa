@@ -130,6 +130,17 @@
   "join.invited_body": "You've been invited to join this gift exchange.",
   "join.signin_to_join": "Sign in to join",
 
+  "action.settings": "Settings",
+  "action.archive": "Archive this edition",
+  "settings.title": "Edition settings",
+  "settings.archive_confirm": "Archive this edition? Everything becomes read-only.",
+  "group.members": "Members",
+  "group.editions": "Editions",
+  "group.current": "Current",
+  "state.open": "Open",
+  "state.drawn": "Drawn",
+  "state.archived": "Archived",
+
   "action.open_draw": "Open my draw",
   "action.open_chat": "Open the chat",
 

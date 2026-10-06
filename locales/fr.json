@@ -130,6 +130,17 @@
   "join.invited_body": "Vous êtes invité à rejoindre cet échange de cadeaux.",
   "join.signin_to_join": "Se connecter pour rejoindre",
 
+  "action.settings": "Paramètres",
+  "action.archive": "Archiver cette édition",
+  "settings.title": "Paramètres de l'édition",
+  "settings.archive_confirm": "Archiver cette édition ? Tout devient en lecture seule.",
+  "group.members": "Membres",
+  "group.editions": "Éditions",
+  "group.current": "En cours",
+  "state.open": "Ouverte",
+  "state.drawn": "Tirée",
+  "state.archived": "Archivée",
+
   "action.open_draw": "Ouvrir mon tirage",
   "action.open_chat": "Ouvrir le chat",
 

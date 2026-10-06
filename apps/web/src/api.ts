@@ -77,6 +77,14 @@ export interface EditionDetail extends EditionSummary {
   isAdmin: boolean;
   inviteUrl?: string;
 }
+export interface GroupDetail {
+  id: string;
+  name: string;
+  defaultLanguage: string;
+  role: string;
+  members: Array<{ userId: string; firstName: string | null; lastName: string | null; role: string; isYou: boolean }>;
+  editions: Array<{ id: string; name: string; theme: string; state: string; exchangeDate: string | null }>;
+}
 export interface ParticipantRow {
   id: string;
   firstName: string;
@@ -119,6 +127,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  group: (id: string) => request<GroupDetail>(`/api/groups/${id}`),
+  saveEditionSettings: (id: string, body: Record<string, unknown>) =>
+    request<{ ok: true }>(`/api/editions/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
+  archiveEditionReq: (id: string) => request<{ ok: true }>(`/api/editions/${id}/archive`, { method: 'POST' }),
 
   edition: (id: string) => request<EditionDetail>(`/api/editions/${id}`),
   participants: (id: string) =>

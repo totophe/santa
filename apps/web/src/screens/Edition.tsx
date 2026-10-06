@@ -18,7 +18,7 @@ function fmtBudget(amount: string, currency: string | null, lang: string): strin
   }
 }
 
-export function Edition({ editionId, meta, onBack }: { editionId: string; meta: PublicMeta | null; onBack: () => void }) {
+export function Edition({ editionId, meta, onBack, onOpenGroup }: { editionId: string; meta: PublicMeta | null; onBack: () => void; onOpenGroup: (groupId: string) => void }) {
   const { t, lang } = useI18n();
   const [detail, setDetail] = useState<EditionDetail | null>(null);
   const [tab, setTab] = useState<Tab>('home');
@@ -39,7 +39,10 @@ export function Edition({ editionId, meta, onBack }: { editionId: string; meta: 
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '70vh' }}>
       <button className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={onBack}>{t('web.back_home')}</button>
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{detail.groupName}</div>
+        {/* tap the group name to see the group's editions + members */}
+        <button onClick={() => onOpenGroup(detail.groupId)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+          {detail.groupName} ›
+        </button>
         <h1 style={{ fontSize: 34 }}>{detail.name}</h1>
         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
           {detail.daysToGo != null && detail.daysToGo >= 0 && <Chip>{detail.daysToGo === 0 ? t('edition.today') : t('edition.days_to_go', { days: detail.daysToGo })}</Chip>}
@@ -68,6 +71,7 @@ function HomeTab({ detail, reload }: { detail: EditionDetail; reload: () => Prom
   const [busy, setBusy] = useState(false);
   const [card, setCard] = useState<Awaited<ReturnType<typeof api.drawCard>> | null>(null);
   const [drawMsg, setDrawMsg] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (detail.state !== 'open') void api.drawCard(detail.id).then(setCard);
@@ -125,9 +129,67 @@ function HomeTab({ detail, reload }: { detail: EditionDetail; reload: () => Prom
             <button className="btn btn-soft" disabled={busy} onClick={() => act(() => api.openChat(detail.id))}>{t('edition.open_chat_now')}</button>
           )}
           {drawMsg && <p className="muted" style={{ fontSize: 14 }}>{drawMsg}</p>}
+          <button className="btn btn-soft" onClick={() => setShowSettings((s) => !s)}>{t('action.settings')}</button>
         </div>
       )}
+      {detail.isAdmin && showSettings && <EditionSettings edition={detail} reload={reload} />}
     </div>
+  );
+}
+
+function EditionSettings({ edition, reload }: { edition: EditionDetail; reload: () => Promise<void> }) {
+  const { t } = useI18n();
+  const [name, setName] = useState(edition.name);
+  const [exchangeDate, setExchangeDate] = useState(edition.exchangeDate ?? '');
+  const [budget, setBudget] = useState(edition.budgetAmount ?? '');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const readOnly = edition.state === 'archived';
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api.saveEditionSettings(edition.id, {
+        name: name.trim(),
+        ...(exchangeDate ? { exchangeDate } : {}),
+        ...(budget ? { budgetAmount: budget, budgetCurrency: edition.budgetCurrency ?? 'EUR' } : {}),
+      });
+      setMsg(t('account.saved'));
+      await reload();
+    } catch {
+      setMsg(t('create.error'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function archive() {
+    if (!window.confirm(t('settings.archive_confirm'))) return;
+    setBusy(true);
+    try { await api.archiveEditionReq(edition.id); await reload(); } finally { setBusy(false); }
+  }
+
+  return (
+    <form className="card stack" onSubmit={save}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('settings.title')}</div>
+      <div className="field">
+        <label>{t('create.edition_name')}</label>
+        <input type="text" maxLength={40} required disabled={readOnly} value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>{t('create.exchange_date')}</label>
+        <input type="text" placeholder="YYYY-MM-DD" disabled={readOnly} value={exchangeDate} onChange={(e) => setExchangeDate(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>{t('create.budget')}</label>
+        <input type="text" placeholder="25" disabled={readOnly} value={budget} onChange={(e) => setBudget(e.target.value)} />
+      </div>
+      {msg && <p className="muted" style={{ color: 'var(--success)' }}>{msg}</p>}
+      {!readOnly && <button className="btn btn-primary" disabled={busy} type="submit">{t('action.save')}</button>}
+      {edition.state !== 'archived' && <button className="btn btn-ghost" type="button" style={{ color: 'var(--danger)' }} disabled={busy} onClick={archive}>{t('action.archive')}</button>}
+    </form>
   );
 }
 

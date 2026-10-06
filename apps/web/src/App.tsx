@@ -5,10 +5,15 @@ import { TopBar } from './components/TopBar';
 import { AuthFlow } from './screens/AuthFlow';
 import { Home } from './screens/Home';
 import { Edition } from './screens/Edition';
+import { Group } from './screens/Group';
 import { Join } from './screens/Join';
 import { Account } from './screens/Account';
 
-type View = { kind: 'home' } | { kind: 'edition'; editionId: string } | { kind: 'account' };
+type View =
+  | { kind: 'home' }
+  | { kind: 'edition'; editionId: string }
+  | { kind: 'group'; groupId: string }
+  | { kind: 'account' };
 
 export default function App() {
   const { setLang } = useI18n();
@@ -93,7 +98,16 @@ export default function App() {
       )}
 
       {!loading && !joinToken && authed && view.kind === 'edition' && (
-        <Edition editionId={view.editionId} meta={meta} onBack={goHome} />
+        <Edition
+          editionId={view.editionId}
+          meta={meta}
+          onBack={goHome}
+          onOpenGroup={(groupId) => setView({ kind: 'group', groupId })}
+        />
+      )}
+
+      {!loading && !joinToken && authed && view.kind === 'group' && (
+        <Group groupId={view.groupId} onOpenEdition={openEdition} onBack={goHome} />
       )}
     </div>
   );
