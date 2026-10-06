@@ -7,8 +7,19 @@ import type { PublicMeta } from '../api';
 
 type Tab = 'home' | 'wishlists' | 'chat' | 'people';
 
+/** Locale-aware currency (thousands separators + symbol), falling back gracefully. */
+function fmtBudget(amount: string, currency: string | null, lang: string): string {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return amount;
+  try {
+    return new Intl.NumberFormat(lang, { style: 'currency', currency: currency || 'EUR' }).format(n);
+  } catch {
+    return `${new Intl.NumberFormat(lang).format(n)} ${currency ?? ''}`.trim();
+  }
+}
+
 export function Edition({ editionId, meta, onBack }: { editionId: string; meta: PublicMeta | null; onBack: () => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [detail, setDetail] = useState<EditionDetail | null>(null);
   const [tab, setTab] = useState<Tab>('home');
 
@@ -32,7 +43,7 @@ export function Edition({ editionId, meta, onBack }: { editionId: string; meta: 
         <h1 style={{ fontSize: 34 }}>{detail.name}</h1>
         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
           {detail.daysToGo != null && detail.daysToGo >= 0 && <Chip>{detail.daysToGo === 0 ? t('edition.today') : t('edition.days_to_go', { days: detail.daysToGo })}</Chip>}
-          {detail.budgetAmount && <Chip>{t('edition.budget', { amount: `${detail.budgetAmount} ${detail.budgetCurrency ?? ''}`.trim() })}</Chip>}
+          {detail.budgetAmount && <Chip>{t('edition.budget', { amount: fmtBudget(detail.budgetAmount, detail.budgetCurrency, lang) })}</Chip>}
         </div>
       </div>
 

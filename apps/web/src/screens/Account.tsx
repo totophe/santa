@@ -85,7 +85,7 @@ export function Account({
         <button className="btn btn-primary" disabled={busy} type="submit">{t('action.save')}</button>
       </form>
 
-      <button className="btn btn-ghost" onClick={async () => { await api.signOut(); onSignedOut(); }}>{t('action.sign_out')}</button>
+      <button className="btn btn-ghost" onClick={onSignedOut}>{t('action.sign_out')}</button>
       <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={remove}>{t('action.delete_account')}</button>
     </div>
   );

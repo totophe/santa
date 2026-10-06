@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type PublicMeta, type SessionUser } from './api';
 import { useI18n } from './i18n';
+import { TopBar } from './components/TopBar';
 import { AuthFlow } from './screens/AuthFlow';
 import { Home } from './screens/Home';
 import { Edition } from './screens/Edition';
@@ -41,19 +42,29 @@ export default function App() {
   }
 
   async function signOut() {
+    try { await api.signOut(); } catch { /* ignore */ }
     setUser(null);
     setView({ kind: 'home' });
   }
 
+  function goHome() {
+    setJoinToken(null);
+    setView({ kind: 'home' });
+  }
+
   const authed = !!(user && user.profileComplete);
-  const showHeader = (loading || !joinToken) && view.kind !== 'edition';
 
   return (
     <div className="shell">
-      {showHeader && (
-        <header className="center" style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 40 }}>{meta?.instanceName ?? 'Santa'}</h1>
-        </header>
+      {!loading && (
+        <TopBar
+          meta={meta}
+          user={user}
+          onHome={goHome}
+          onAccount={() => setView({ kind: 'account' })}
+          onSignOut={signOut}
+          onUserUpdated={setUser}
+        />
       )}
 
       {loading && <p className="muted center">…</p>}
@@ -78,17 +89,11 @@ export default function App() {
       )}
 
       {!loading && !joinToken && authed && view.kind === 'account' && user && (
-        <Account
-          user={user}
-          meta={meta}
-          onUpdated={setUser}
-          onBack={() => setView({ kind: 'home' })}
-          onSignedOut={signOut}
-        />
+        <Account user={user} meta={meta} onUpdated={setUser} onBack={goHome} onSignedOut={signOut} />
       )}
 
       {!loading && !joinToken && authed && view.kind === 'edition' && (
-        <Edition editionId={view.editionId} meta={meta} onBack={() => setView({ kind: 'home' })} />
+        <Edition editionId={view.editionId} meta={meta} onBack={goHome} />
       )}
     </div>
   );
