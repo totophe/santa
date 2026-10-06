@@ -1,0 +1,22 @@
+[
+  { "key": "curious-fox", "emoji": "🦊", "name": { "en": "Curious Fox", "fr": "Renard Curieux" } },
+  { "key": "sleepy-owl", "emoji": "🦉", "name": { "en": "Sleepy Owl", "fr": "Hibou Endormi" } },
+  { "key": "merry-mouse", "emoji": "🐭", "name": { "en": "Merry Mouse", "fr": "Souris Joyeuse" } },
+  { "key": "clever-cat", "emoji": "🐱", "name": { "en": "Clever Cat", "fr": "Chat Malin" } },
+  { "key": "happy-hare", "emoji": "🐰", "name": { "en": "Happy Hare", "fr": "Lièvre Content" } },
+  { "key": "brave-badger", "emoji": "🦡", "name": { "en": "Brave Badger", "fr": "Blaireau Courageux" } },
+  { "key": "gentle-deer", "emoji": "🦌", "name": { "en": "Gentle Deer", "fr": "Cerf Doux" } },
+  { "key": "witty-weasel", "emoji": "🦫", "name": { "en": "Witty Weasel", "fr": "Belette Futée" } },
+  { "key": "plucky-penguin", "emoji": "🐧", "name": { "en": "Plucky Penguin", "fr": "Manchot Vaillant" } },
+  { "key": "dreamy-dolphin", "emoji": "🐬", "name": { "en": "Dreamy Dolphin", "fr": "Dauphin Rêveur" } },
+  { "key": "bouncy-frog", "emoji": "🐸", "name": { "en": "Bouncy Frog", "fr": "Grenouille Sautillante" } },
+  { "key": "quiet-koala", "emoji": "🐨", "name": { "en": "Quiet Koala", "fr": "Koala Tranquille" } },
+  { "key": "rosy-robin", "emoji": "🐦", "name": { "en": "Rosy Robin", "fr": "Rouge-gorge Rosé" } },
+  { "key": "swift-swallow", "emoji": "🕊️", "name": { "en": "Swift Swallow", "fr": "Hirondelle Rapide" } },
+  { "key": "mellow-moose", "emoji": "🫎", "name": { "en": "Mellow Moose", "fr": "Élan Paisible" } },
+  { "key": "nimble-newt", "emoji": "🦎", "name": { "en": "Nimble Newt", "fr": "Triton Agile" } },
+  { "key": "happy-hedgehog", "emoji": "🦔", "name": { "en": "Happy Hedgehog", "fr": "Hérisson Joyeux" } },
+  { "key": "busy-bee", "emoji": "🐝", "name": { "en": "Busy Bee", "fr": "Abeille Affairée" } },
+  { "key": "proud-peacock", "emoji": "🦚", "name": { "en": "Proud Peacock", "fr": "Paon Fier" } },
+  { "key": "lucky-ladybird", "emoji": "🐞", "name": { "en": "Lucky Ladybird", "fr": "Coccinelle Chanceuse" } }
+]

@@ -1,0 +1,38 @@
+{
+  "name": "santa",
+  "label": "Santa",
+  "defaultEditionNamePattern": "Christmas {year}",
+  "palette": {
+    "light": {
+      "bg": "#FBF3E4",
+      "surface": "#FFFFFF",
+      "text": "#2B1D1A",
+      "muted": "#7A6A62",
+      "line": "#E6D6BC",
+      "primary": "#C8102E",
+      "on-primary": "#FFF6E5",
+      "accent": "#2A9D6F",
+      "on-accent": "#FFF6E5",
+      "soft": "#F3E3C6",
+      "success": "#1F7F58",
+      "warning": "#A86A05",
+      "danger": "#A3261E"
+    },
+    "dark": {
+      "bg": "#0F3B2E",
+      "surface": "#174A3A",
+      "text": "#FFF6E5",
+      "muted": "#A9CBBB",
+      "line": "#2A6350",
+      "primary": "#FF6B6B",
+      "on-primary": "#0F3B2E",
+      "accent": "#7FE0B2",
+      "on-accent": "#0F3B2E",
+      "soft": "#1E5744",
+      "success": "#7FE0B2",
+      "warning": "#FFC56B",
+      "danger": "#FF8A8A"
+    }
+  },
+  "pattern": "repeating-linear-gradient(135deg,var(--primary) 0 14px,var(--bg) 14px 28px)"
+}

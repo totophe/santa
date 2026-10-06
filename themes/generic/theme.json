@@ -1,0 +1,38 @@
+{
+  "name": "generic",
+  "label": "Gift exchange",
+  "defaultEditionNamePattern": "Gift exchange {year}",
+  "palette": {
+    "light": {
+      "bg": "#F5F3FB",
+      "surface": "#FFFFFF",
+      "text": "#26213A",
+      "muted": "#6B6680",
+      "line": "#DDD8EC",
+      "primary": "#4F46C8",
+      "on-primary": "#FFFFFF",
+      "accent": "#F2B84B",
+      "on-accent": "#26213A",
+      "soft": "#E8E4F7",
+      "success": "#1F7F58",
+      "warning": "#A86A05",
+      "danger": "#B9321F"
+    },
+    "dark": {
+      "bg": "#1D1A33",
+      "surface": "#28244A",
+      "text": "#F4F2FB",
+      "muted": "#B3ADCC",
+      "line": "#3C3760",
+      "primary": "#A49DFF",
+      "on-primary": "#1D1A33",
+      "accent": "#FFCB66",
+      "on-accent": "#1D1A33",
+      "soft": "#332E58",
+      "success": "#7FD9A2",
+      "warning": "#FFC56B",
+      "danger": "#FF8A8A"
+    }
+  },
+  "pattern": "radial-gradient(circle at 7px 7px,var(--primary) 3px,transparent 3.5px) 0 0/14px 14px,radial-gradient(circle at 7px 7px,var(--accent) 3px,transparent 3.5px) 7px 7px/14px 14px,var(--bg)"
+}

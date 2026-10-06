@@ -1,0 +1,91 @@
+---
+# Deploy Santa to the VM by pulling the published image (ghcr.io/totophe/santa)
+# and running it with PostgreSQL via compose.prod.yml. Public TLS + domain live on
+# the edge VPS (managed separately), which proxies to this VM over WireGuard.
+# Builtin modules only — no external collections.
+- name: Deploy Santa (image-based)
+  hosts: santa
+  become: true
+  gather_facts: true
+  vars_files:
+    - vars.yml
+    - .secrets.yml
+
+  tasks:
+    - name: Check whether Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Docker Engine + Compose plugin (official convenience script)
+      when: docker_check.rc != 0
+      block:
+        - name: Download get-docker.sh
+          ansible.builtin.get_url:
+            url: https://get.docker.com
+            dest: /tmp/get-docker.sh
+            mode: "0755"
+        - name: Run get-docker.sh
+          ansible.builtin.command: sh /tmp/get-docker.sh
+          changed_when: true
+
+    - name: Ensure Docker is running and enabled
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add the deploy user to the docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Create the install directory
+      ansible.builtin.file:
+        path: "{{ install_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: "0755"
+
+    - name: Copy the production compose file
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../compose.prod.yml"
+        dest: "{{ install_dir }}/compose.yml"
+        owner: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Render .env
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ install_dir }}/.env"
+        owner: "{{ ansible_user }}"
+        mode: "0600"
+
+    # The image is public, so no registry login is needed. If it is ever made
+    # private, add a docker/login step here with a read:packages token.
+    - name: Pull the latest image
+      ansible.builtin.command:
+        chdir: "{{ install_dir }}"
+        cmd: docker compose --env-file .env pull
+      changed_when: true
+
+    - name: Start the stack
+      ansible.builtin.command:
+        chdir: "{{ install_dir }}"
+        cmd: docker compose --env-file .env up -d
+      changed_when: true
+
+    - name: Wait for the app to become healthy
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/healthz"
+        status_code: 200
+      register: health
+      until: health.status == 200
+      retries: 30
+      delay: 5
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "Santa {{ santa_image }}:{{ santa_tag }} is up and healthy; public URL {{ app_url }}"

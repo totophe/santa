@@ -1,0 +1,51 @@
+# One image serves the API and the built web app; PostgreSQL runs beside it.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://santa:${POSTGRES_PASSWORD:-santa}@postgres:5432/santa
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      MAIL_FROM: ${MAIL_FROM}
+      GROUP_CREATION: ${GROUP_CREATION:-admins}
+      GROUP_CREATION_ALLOWLIST: ${GROUP_CREATION_ALLOWLIST}
+      INSTANCE_ADMINS: ${INSTANCE_ADMINS}
+      INSTANCE_NAME: ${INSTANCE_NAME:-Santa}
+      DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-en}
+      INACTIVE_GROUP_YEARS: ${INACTIVE_GROUP_YEARS:-3}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      PORT: 3000
+    ports:
+      - "${PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: santa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-santa}
+      POSTGRES_DB: santa
+    volumes:
+      - santa-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U santa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  santa-db:
