@@ -184,10 +184,13 @@ function AdminPanel({ detail, reload }: { detail: EditionDetail; reload: () => P
         )}
         {detail.state === 'open' && (
           <button className="btn btn-primary" disabled={busy || detail.counts.confirmed < 3 || detail.counts.confirmed !== detail.counts.participants}
-            onClick={() => act(async () => {
-              const r = await api.runDraw(detail.id);
-              setMsg(t('edition.drawn_for', { n: r.participants }) + (r.relaxed ? ' ' + t('draw.relaxed') : ''));
-            })}>
+            onClick={() => {
+              if (!window.confirm(t('edition.draw_confirm', { n: detail.counts.participants }))) return;
+              void act(async () => {
+                const r = await api.runDraw(detail.id);
+                setMsg(t('edition.drawn_for', { n: r.participants }) + (r.relaxed ? ' ' + t('draw.relaxed') : ''));
+              });
+            }}>
             {detail.counts.confirmed < 3 ? t('edition.run_draw_need3') : detail.counts.confirmed !== detail.counts.participants ? t('edition.run_draw_waiting') : t('edition.run_draw')}
           </button>
         )}

@@ -108,6 +108,7 @@
   "edition.open_chat_now": "Open the chat now",
   "edition.drawn_for": "Drawn for {n, number}.",
   "edition.chat_open_entry": "The group chat is open",
+  "edition.draw_confirm": "Draw for {n} participants? Nobody can join after this, and it cannot be undone.",
   "edition.in_this_year": "Are you in this year?",
   "edition.ready_title": "You're ready.",
   "edition.ready_body": "The draw happens when everyone has confirmed. {confirmed, number} of {total, number} confirmed.",

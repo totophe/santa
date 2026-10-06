@@ -39,3 +39,7 @@ mail_from: "Santa <no-reply@totophe.com>"
 
 install_dir: "/opt/santa"
 inactive_group_years: 3
+
+# Family instances often sign in from one home network (shared public IP), so the
+# default of 20 sign-in emails/IP/hour is raised here.
+rate_limit_signin_per_ip: 100
