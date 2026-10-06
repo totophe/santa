@@ -72,6 +72,8 @@
   "action.account": "Account",
   "action.delete_account": "Delete my account",
   "web.loading": "Loading…",
+  "update.available": "A new version is available.",
+  "action.reload": "Reload",
   "web.back_home": "← Home",
   "home.no_group_title": "No group yet",
   "home.no_group_body": "You need an invite link to join a group, or create your own.",

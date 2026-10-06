@@ -36,8 +36,21 @@ async function bootstrap(): Promise<void> {
   const webDir = resolveWebDir();
   if (webDir) {
     const server = app.getHttpAdapter().getInstance();
-    server.use(express.static(webDir));
+    server.use(
+      express.static(webDir, {
+        setHeaders: (res, filePath) => {
+          // Hashed asset filenames can cache forever; index.html must always be
+          // revalidated so an installed/home-screen PWA picks up new builds.
+          if (filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+          } else if (/[\\/]assets[\\/]/.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      }),
+    );
     server.get(/^\/(?!api\/|healthz).*/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(join(webDir, 'index.html'));
     });
     logger.log(`Serving web app from ${webDir}`);

@@ -79,7 +79,7 @@ export function HoldToReveal({ onReveal }: Props) {
         {showName ? (
           <div key={revealId} className="reveal-name">{name}</div>
         ) : (
-          <div className="reveal-redacted">{t('draw.hidden')}</div>
+          <div className={phase === 'holding' ? 'reveal-redacted reveal-shake' : 'reveal-redacted'}>{t('draw.hidden')}</div>
         )}
       </div>
       <button

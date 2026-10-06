@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type PublicMeta, type SessionUser } from './api';
 import { useI18n } from './i18n';
 import { TopBar } from './components/TopBar';
+import { UpdateBanner } from './components/UpdateBanner';
 import { AuthFlow } from './screens/AuthFlow';
 import { Home } from './screens/Home';
 import { Edition } from './screens/Edition';
@@ -61,6 +62,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      <UpdateBanner />
       {!loading && (
         <TopBar
           meta={meta}

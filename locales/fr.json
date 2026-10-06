@@ -72,6 +72,8 @@
   "action.account": "Compte",
   "action.delete_account": "Supprimer mon compte",
   "web.loading": "Chargement…",
+  "update.available": "Une nouvelle version est disponible.",
+  "action.reload": "Recharger",
   "web.back_home": "← Accueil",
   "home.no_group_title": "Pas encore de groupe",
   "home.no_group_body": "Il vous faut un lien d'invitation pour rejoindre un groupe, ou créez le vôtre.",
