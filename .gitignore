@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env
+.env.local
+.DS_Store
+*.tsbuildinfo
+apps/web/dist/
+apps/api/dist/
+
+# Ansible deployment secrets (encryption key, DB/SMTP passwords) — never commit.
+deploy/ansible/.secrets.yml

@@ -1,0 +1,81 @@
+{
+  "name": "santa",
+  // Pinned to :latest (newest build). Switch to :v1 for a stable major pin.
+  "image": "ghcr.io/wellmade-oss/dc-workbench:latest",
+  "remoteUser": "wm",
+  "containerUser": "wm",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  // Run with an init process (tini) — the image CMD is `sleep infinity`,
+  // which as PID 1 doesn't reap zombies. See images/core/devcontainer.json.
+  "init": true,
+
+  // ---------------------------------------------------------------------
+  // Persisted state — see images/core/devcontainer.json for the rationale.
+  //
+  //   wellmade-state-*  → credentials / auth / history. DON'T prune.
+  //   wellmade-cache-*  → caches. Safe to `docker volume prune` if needed.
+  // ---------------------------------------------------------------------
+  "mounts": [
+    // Inherited from core (agent + git platform identity).
+    "source=wellmade-state-claude,target=/home/wm/.claude,type=volume",
+    "source=wellmade-state-gh,target=/home/wm/.config/gh,type=volume",
+    "source=wellmade-state-glab,target=/home/wm/.config/glab-cli,type=volume",
+    "source=wellmade-state-ssh,target=/home/wm/.ssh,type=volume",
+
+    // Workbench-specific credentials.
+    "source=wellmade-state-scw,target=/home/wm/.config/scw,type=volume",
+    "source=wellmade-state-op,target=/home/wm/.config/op,type=volume",
+    "source=wellmade-state-kube,target=/home/wm/.kube,type=volume",
+
+    // Host Docker socket — required for `act` (local GitHub Actions runs).
+    // This is NOT Docker-in-Docker; we use the host daemon via the socket.
+    // Kept above the cache mount so the `init.sh` wizard can comment this
+    // single line out without leaving a dangling trailing comma.
+    // Uncomment to run `act` / use host Docker (NOT Docker-in-Docker):
+    // "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+
+    // Caches — safe to docker volume prune. Speeds up cold starts.
+    "source=wellmade-cache-cargo-registry,target=/home/wm/.cargo/registry,type=volume",
+
+    // VS Code server — cached so it isn't re-downloaded on every rebuild.
+    "source=wellmade-cache-vscode-server,target=/home/wm/.vscode-server,type=volume"
+  ],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "github.vscode-pull-request-github",
+        "github.vscode-github-actions",
+        "eamodio.gitlens",
+        "editorconfig.editorconfig",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "stylelint.vscode-stylelint",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "rust-lang.rust-analyzer",
+        "redhat.ansible",
+        "ms-kubernetes-tools.vscode-kubernetes-tools"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "[javascript][typescript][javascriptreact][typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      }
+    }
+  },
+
+  "postCreateCommand": "/opt/wellmade/bin/postcreate.sh",
+
+  // Self-heals /home/wm ownership on every start — see
+  // images/core/devcontainer.json for the rationale.
+  "postStartCommand": "/opt/wellmade/bin/fix-ownership.sh"
+}

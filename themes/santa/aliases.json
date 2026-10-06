@@ -1,0 +1,22 @@
+[
+  { "key": "grumpy-elf", "emoji": "🧝", "name": { "en": "Grumpy Elf", "fr": "Lutin Grognon" } },
+  { "key": "distracted-reindeer", "emoji": "🦌", "name": { "en": "Distracted Reindeer", "fr": "Renne Distrait" } },
+  { "key": "sleepy-snowman", "emoji": "⛄", "name": { "en": "Sleepy Snowman", "fr": "Bonhomme Endormi" } },
+  { "key": "cheeky-robin", "emoji": "🐦", "name": { "en": "Cheeky Robin", "fr": "Rouge-gorge Malin" } },
+  { "key": "jolly-penguin", "emoji": "🐧", "name": { "en": "Jolly Penguin", "fr": "Manchot Joyeux" } },
+  { "key": "merry-mouse", "emoji": "🐭", "name": { "en": "Merry Mouse", "fr": "Souris Festive" } },
+  { "key": "frosty-fox", "emoji": "🦊", "name": { "en": "Frosty Fox", "fr": "Renard Givré" } },
+  { "key": "cosy-cat", "emoji": "🐱", "name": { "en": "Cosy Cat", "fr": "Chat Douillet" } },
+  { "key": "gingerbread-pup", "emoji": "🐶", "name": { "en": "Gingerbread Pup", "fr": "Toutou Pain d'épice" } },
+  { "key": "starry-owl", "emoji": "🦉", "name": { "en": "Starry Owl", "fr": "Hibou Étoilé" } },
+  { "key": "candy-cane-crab", "emoji": "🦀", "name": { "en": "Candy-cane Crab", "fr": "Crabe Sucre d'orge" } },
+  { "key": "mitten-moose", "emoji": "🫎", "name": { "en": "Mitten Moose", "fr": "Élan Moufle" } },
+  { "key": "tinsel-turtle", "emoji": "🐢", "name": { "en": "Tinsel Turtle", "fr": "Tortue Guirlande" } },
+  { "key": "holly-hedgehog", "emoji": "🦔", "name": { "en": "Holly Hedgehog", "fr": "Hérisson Houx" } },
+  { "key": "nutty-squirrel", "emoji": "🐿️", "name": { "en": "Nutty Squirrel", "fr": "Écureuil Farceur" } },
+  { "key": "bauble-bear", "emoji": "🐻", "name": { "en": "Bauble Bear", "fr": "Ours Boule de Noël" } },
+  { "key": "sparkly-seal", "emoji": "🦭", "name": { "en": "Sparkly Seal", "fr": "Phoque Pétillant" } },
+  { "key": "velvet-vixen", "emoji": "🦝", "name": { "en": "Velvet Vixen", "fr": "Raton Velours" } },
+  { "key": "peppermint-panda", "emoji": "🐼", "name": { "en": "Peppermint Panda", "fr": "Panda Menthe" } },
+  { "key": "wintry-wolf", "emoji": "🐺", "name": { "en": "Wintry Wolf", "fr": "Loup Hivernal" } }
+]

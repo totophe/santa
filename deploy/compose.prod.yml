@@ -1,0 +1,40 @@
+# Production stack for the VM: pulls the published image (no build) and runs
+# PostgreSQL beside it. Public TLS and the domain (santa.totophe.com) are handled
+# by the edge VPS, which reverse-proxies to this VM over WireGuard, so the app
+# speaks plain HTTP here and trusts the proxy's forwarded headers (TRUST_PROXY).
+services:
+  app:
+    image: ${SANTA_IMAGE:-ghcr.io/totophe/santa}:${SANTA_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Bind to the address the edge reaches over WireGuard. Default 0.0.0.0 — lock
+    # this down to the WG interface IP (or via the VM firewall) so it is not
+    # exposed on the LAN. Example: APP_BIND=10.8.0.2
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: santa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: santa
+    volumes:
+      - santa-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U santa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  santa-db:
