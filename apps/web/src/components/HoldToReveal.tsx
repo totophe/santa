@@ -20,6 +20,7 @@ export function HoldToReveal({ onReveal }: Props) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [pct, setPct] = useState(0);
   const [name, setName] = useState<string | null>(null);
+  const [revealId, setRevealId] = useState(0);
   const raf = useRef<number | null>(null);
   const start = useRef(0);
   const done = useRef(false);
@@ -43,6 +44,7 @@ export function HoldToReveal({ onReveal }: Props) {
           const revealed = await onReveal();
           // Only show if still holding.
           setName(revealed);
+          setRevealId((n) => n + 1);
           setPhase('revealed');
         } catch {
           reset();
@@ -73,19 +75,12 @@ export function HoldToReveal({ onReveal }: Props) {
 
   return (
     <div className="stack" style={{ gap: 14 }}>
-      <div
-        aria-live="polite"
-        style={{
-          minHeight: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'Chewy, cursive',
-          fontSize: 48,
-          color: 'var(--primary)',
-        }}
-      >
-        {showName ? name : ''}
+      <div className="reveal-slot" aria-live="polite">
+        {showName ? (
+          <div key={revealId} className="reveal-name">{name}</div>
+        ) : (
+          <div className="reveal-redacted">{t('draw.hidden')}</div>
+        )}
       </div>
       <button
         type="button"

@@ -60,6 +60,7 @@
 
   "draw.ready": "Votre tirage est prêt",
   "draw.not_yet": "Le tirage n'a pas encore eu lieu",
+  "draw.hidden": "CONFIDENTIEL",
   "draw.press_hold": "Appuyez et maintenez pour révéler",
   "draw.keep_holding": "Continuez d'appuyer…",
   "draw.release_to_hide": "Relâchez pour masquer",

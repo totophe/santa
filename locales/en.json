@@ -60,6 +60,7 @@
 
   "draw.ready": "Your draw is ready",
   "draw.not_yet": "The draw hasn't happened yet",
+  "draw.hidden": "TOP SECRET",
   "draw.press_hold": "Press and hold to reveal",
   "draw.keep_holding": "Keep holding…",
   "draw.release_to_hide": "Release to hide",

@@ -174,9 +174,48 @@ button:focus-visible {
   flex: 1;
 }
 
+/* Hold-to-reveal: a redacted "TOP SECRET" bar that spins to reveal the name. */
+.reveal-slot {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 600px;
+}
+.reveal-name {
+  font-family: 'Chewy', cursive;
+  font-size: 48px;
+  line-height: 1;
+  color: var(--primary);
+  animation: revealSpin 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.reveal-redacted {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.25em;
+  color: var(--bg);
+  background: var(--text);
+  padding: 10px 18px;
+  border-radius: 8px;
+  animation: redactSpin 0.4s ease-out;
+}
+@keyframes revealSpin {
+  0% { transform: rotateX(90deg) scale(0.8); opacity: 0; }
+  60% { transform: rotateX(-12deg) scale(1.06); opacity: 1; }
+  100% { transform: rotateX(0) scale(1); opacity: 1; }
+}
+@keyframes redactSpin {
+  0% { transform: rotateX(-90deg); opacity: 0; }
+  100% { transform: rotateX(0); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
     transition: none !important;
   }
+  /* Reveal still fades in, just without the spin. */
+  .reveal-name { animation: fadeIn 0.2s ease-out !important; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 }
