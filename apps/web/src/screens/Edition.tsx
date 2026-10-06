@@ -84,6 +84,36 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--soft)', fontSize: 13, fontWeight: 700 }}>{children}</span>;
 }
 
+function InviteCard({ url, groupName }: { url: string; groupName: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  return (
+    <div className="card stack">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 22 }}>🎟️</span>
+        <h2 style={{ fontSize: 22, flex: 1 }}>{t('edition.invite_people')}</h2>
+      </div>
+      <p className="muted" style={{ marginTop: -6, fontSize: 14 }}>{t('edition.invite_hint')}</p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {canShare && (
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { void navigator.share({ title: groupName, url }).catch(() => {}); }}>
+            {t('edition.share')}
+          </button>
+        )}
+        <button
+          className="btn btn-soft"
+          style={{ flex: 1 }}
+          onClick={() => { void navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+        >
+          {copied ? t('edition.invite_copied') : t('edition.invite_copy')}
+        </button>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>{url}</div>
+    </div>
+  );
+}
+
 function HomeTab({ detail, reload, goChat }: { detail: EditionDetail; reload: () => Promise<void>; goChat: () => void }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -108,6 +138,10 @@ function HomeTab({ detail, reload, goChat }: { detail: EditionDetail; reload: ()
 
   return (
     <div className="stack">
+      {detail.isAdmin && detail.state === 'open' && detail.inviteUrl && (
+        <InviteCard url={detail.inviteUrl} groupName={detail.groupName} />
+      )}
+
       {detail.myStatus === 'invited' && (
         <div className="card stack">
           <h2 style={{ fontSize: 22 }}>{t('edition.in_this_year')}</h2>
@@ -179,9 +213,6 @@ function AdminPanel({ detail, reload }: { detail: EditionDetail; reload: () => P
     <div className="stack">
       <div className="card stack">
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('edition.admin')}</div>
-        {detail.inviteUrl && (
-          <button className="btn btn-soft" onClick={() => { void navigator.clipboard?.writeText(detail.inviteUrl!); setMsg(t('edition.invite_copied')); }}>{t('edition.invite_copy')}</button>
-        )}
         {detail.state === 'open' && (
           <button className="btn btn-primary" disabled={busy || detail.counts.confirmed < 3 || detail.counts.confirmed !== detail.counts.participants}
             onClick={() => {
