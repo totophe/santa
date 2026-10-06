@@ -75,6 +75,7 @@ export interface EditionDetail extends EditionSummary {
   groupId: string;
   groupName: string;
   isAdmin: boolean;
+  chatOpen: boolean;
   inviteUrl?: string;
 }
 export interface GroupDetail {

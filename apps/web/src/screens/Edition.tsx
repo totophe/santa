@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type EditionDetail, type MyWishlist, type ParticipantRow } from '../api';
+import { api, type EditionDetail, type MyWishlist, type ParticipantRow, type PublicMeta } from '../api';
 import { HoldToReveal } from '../components/HoldToReveal';
 import { applyTheme } from '../theme';
 import { useI18n } from '../i18n';
-import type { PublicMeta } from '../api';
 
-type Tab = 'home' | 'wishlists' | 'chat' | 'people';
+type Tab = 'home' | 'wishlists' | 'chat';
 
 /** Locale-aware currency (thousands separators + symbol), falling back gracefully. */
 function fmtBudget(amount: string, currency: string | null, lang: string): string {
@@ -22,6 +21,7 @@ export function Edition({ editionId, meta, onBack, onOpenGroup }: { editionId: s
   const { t, lang } = useI18n();
   const [detail, setDetail] = useState<EditionDetail | null>(null);
   const [tab, setTab] = useState<Tab>('home');
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const load = useCallback(async () => {
     const d = await api.edition(editionId);
@@ -33,31 +33,49 @@ export function Edition({ editionId, meta, onBack, onOpenGroup }: { editionId: s
     return () => applyTheme(meta, null);
   }, [load, meta]);
 
+  function goTab(tb: Tab) {
+    setShowAdmin(false);
+    setTab(tb);
+  }
+
   if (!detail) return <p className="muted center">{t('web.loading')}</p>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '70vh' }}>
       <button className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={onBack}>{t('web.back_home')}</button>
-      <div style={{ marginBottom: 8 }}>
-        {/* tap the group name to see the group's editions + members */}
-        <button onClick={() => onOpenGroup(detail.groupId)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-          {detail.groupName} ›
-        </button>
-        <h1 style={{ fontSize: 34 }}>{detail.name}</h1>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-          {detail.daysToGo != null && detail.daysToGo >= 0 && <Chip>{detail.daysToGo === 0 ? t('edition.today') : t('edition.days_to_go', { days: detail.daysToGo })}</Chip>}
-          {detail.budgetAmount && <Chip>{t('edition.budget', { amount: fmtBudget(detail.budgetAmount, detail.budgetCurrency, lang) })}</Chip>}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <button onClick={() => onOpenGroup(detail.groupId)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            {detail.groupName} ›
+          </button>
+          <h1 style={{ fontSize: 34 }}>{detail.name}</h1>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            {detail.daysToGo != null && detail.daysToGo >= 0 && <Chip>{detail.daysToGo === 0 ? t('edition.today') : t('edition.days_to_go', { days: detail.daysToGo })}</Chip>}
+            {detail.budgetAmount && <Chip>{t('edition.budget', { amount: fmtBudget(detail.budgetAmount, detail.budgetCurrency, lang) })}</Chip>}
+          </div>
         </div>
+        {detail.isAdmin && (
+          <button aria-label={t('action.settings')} onClick={() => setShowAdmin((s) => !s)} className="btn btn-soft" style={{ width: 'auto', minHeight: 44, padding: '0 12px' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1 }}>
-        {tab === 'home' && <HomeTab detail={detail} reload={load} />}
-        {tab === 'wishlists' && <WishlistsTab editionId={editionId} />}
-        {tab === 'chat' && <ChatTab editionId={editionId} />}
-        {tab === 'people' && <PeopleTab editionId={editionId} />}
+        {showAdmin ? (
+          <AdminPanel detail={detail} reload={load} />
+        ) : (
+          <>
+            {tab === 'home' && <HomeTab detail={detail} reload={load} goChat={() => goTab('chat')} />}
+            {tab === 'wishlists' && <WishlistsTab editionId={editionId} />}
+            {tab === 'chat' && <ChatTab editionId={editionId} />}
+          </>
+        )}
       </div>
 
-      <TabBar tab={tab} setTab={setTab} />
+      <TabBar tab={showAdmin ? null : tab} setTab={goTab} />
     </div>
   );
 }
@@ -66,12 +84,10 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--soft)', fontSize: 13, fontWeight: 700 }}>{children}</span>;
 }
 
-function HomeTab({ detail, reload }: { detail: EditionDetail; reload: () => Promise<void> }) {
+function HomeTab({ detail, reload, goChat }: { detail: EditionDetail; reload: () => Promise<void>; goChat: () => void }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [card, setCard] = useState<Awaited<ReturnType<typeof api.drawCard>> | null>(null);
-  const [drawMsg, setDrawMsg] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (detail.state !== 'open') void api.drawCard(detail.id).then(setCard);
@@ -81,6 +97,14 @@ function HomeTab({ detail, reload }: { detail: EditionDetail; reload: () => Prom
     setBusy(true);
     try { await fn(); await reload(); } finally { setBusy(false); }
   }
+
+  const chatEntry = detail.chatOpen && (
+    <button className="card" onClick={goChat} style={{ textAlign: 'left', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+      <span style={{ fontSize: 24 }}>💬</span>
+      <span style={{ flex: 1, fontWeight: 700 }}>{t('edition.chat_open_entry')}</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.4" strokeLinecap="round"><path d="m9 6 6 6-6 6" /></svg>
+    </button>
+  );
 
   return (
     <div className="stack">
@@ -108,31 +132,71 @@ function HomeTab({ detail, reload }: { detail: EditionDetail; reload: () => Prom
         </div>
       )}
 
-      {detail.isAdmin && (
-        <div className="card stack">
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('edition.admin')}</div>
-          {detail.inviteUrl && (
-            <button className="btn btn-soft" onClick={() => { void navigator.clipboard?.writeText(detail.inviteUrl!); setDrawMsg(t('edition.invite_copied')); }}>
-              {t('edition.invite_copy')}
-            </button>
-          )}
-          {detail.state === 'open' && (
-            <button className="btn btn-primary" disabled={busy || detail.counts.confirmed < 3 || detail.counts.confirmed !== detail.counts.participants}
-              onClick={() => act(async () => {
-                const r = await api.runDraw(detail.id);
-                setDrawMsg(t('edition.drawn_for', { n: r.participants }) + (r.relaxed ? ' ' + t('draw.relaxed') : ''));
-              })}>
-              {detail.counts.confirmed < 3 ? t('edition.run_draw_need3') : detail.counts.confirmed !== detail.counts.participants ? t('edition.run_draw_waiting') : t('edition.run_draw')}
-            </button>
-          )}
-          {detail.state === 'drawn' && (
-            <button className="btn btn-soft" disabled={busy} onClick={() => act(() => api.openChat(detail.id))}>{t('edition.open_chat_now')}</button>
-          )}
-          {drawMsg && <p className="muted" style={{ fontSize: 14 }}>{drawMsg}</p>}
-          <button className="btn btn-soft" onClick={() => setShowSettings((s) => !s)}>{t('action.settings')}</button>
+      {/* Once the chat is open it leads; otherwise members are the heart of the page. */}
+      {chatEntry}
+      <Members editionId={detail.id} />
+    </div>
+  );
+}
+
+function Members({ editionId }: { editionId: string }) {
+  const { t } = useI18n();
+  const [data, setData] = useState<{ participants: ParticipantRow[]; summary: { confirmed: number; checked: number; total: number; drawn: boolean } } | null>(null);
+  useEffect(() => { void api.participants(editionId).then(setData); }, [editionId]);
+  if (!data) return <p className="muted center">{t('web.loading')}</p>;
+  return (
+    <div className="card stack">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('nav.people')}</div>
+        <div className="muted" style={{ fontSize: 12 }}>
+          {data.summary.drawn
+            ? t('participants.summary_checked', { checked: data.summary.checked, total: data.summary.total })
+            : t('participants.summary_confirmed', { confirmed: data.summary.confirmed, total: data.summary.total })}
         </div>
-      )}
-      {detail.isAdmin && showSettings && <EditionSettings edition={detail} reload={reload} />}
+      </div>
+      {data.participants.map((p) => (
+        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--line)', paddingBottom: 6 }}>
+          <span style={{ flex: 1, fontWeight: 600 }}>{p.firstName}{p.lastInitial ? ` ${p.lastInitial}.` : ''}{p.isYou ? ` (${t('people.you')})` : ''}{p.isAdmin ? ` · ${t('people.admin')}` : ''}</span>
+          <StatusChip status={p.status} />
+          <span>{p.wishlistState === 'published' ? '🎁' : p.wishlistState === 'surprise' ? '✨' : '—'}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdminPanel({ detail, reload }: { detail: EditionDetail; reload: () => Promise<void> }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function act(fn: () => Promise<unknown>, done?: string) {
+    setBusy(true);
+    try { await fn(); if (done) setMsg(done); await reload(); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="stack">
+      <div className="card stack">
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('edition.admin')}</div>
+        {detail.inviteUrl && (
+          <button className="btn btn-soft" onClick={() => { void navigator.clipboard?.writeText(detail.inviteUrl!); setMsg(t('edition.invite_copied')); }}>{t('edition.invite_copy')}</button>
+        )}
+        {detail.state === 'open' && (
+          <button className="btn btn-primary" disabled={busy || detail.counts.confirmed < 3 || detail.counts.confirmed !== detail.counts.participants}
+            onClick={() => act(async () => {
+              const r = await api.runDraw(detail.id);
+              setMsg(t('edition.drawn_for', { n: r.participants }) + (r.relaxed ? ' ' + t('draw.relaxed') : ''));
+            })}>
+            {detail.counts.confirmed < 3 ? t('edition.run_draw_need3') : detail.counts.confirmed !== detail.counts.participants ? t('edition.run_draw_waiting') : t('edition.run_draw')}
+          </button>
+        )}
+        {detail.state === 'drawn' && !detail.chatOpen && (
+          <button className="btn btn-soft" disabled={busy} onClick={() => act(() => api.openChat(detail.id), t('account.saved'))}>{t('edition.open_chat_now')}</button>
+        )}
+        {msg && <p className="muted" style={{ fontSize: 14 }}>{msg}</p>}
+      </div>
+      <EditionSettings edition={detail} reload={reload} />
     </div>
   );
 }
@@ -188,7 +252,7 @@ function EditionSettings({ edition, reload }: { edition: EditionDetail; reload: 
       </div>
       {msg && <p className="muted" style={{ color: 'var(--success)' }}>{msg}</p>}
       {!readOnly && <button className="btn btn-primary" disabled={busy} type="submit">{t('action.save')}</button>}
-      {edition.state !== 'archived' && <button className="btn btn-ghost" type="button" style={{ color: 'var(--danger)' }} disabled={busy} onClick={archive}>{t('action.archive')}</button>}
+      {!readOnly && <button className="btn btn-ghost" type="button" style={{ color: 'var(--danger)' }} disabled={busy} onClick={archive}>{t('action.archive')}</button>}
     </form>
   );
 }
@@ -276,11 +340,12 @@ function ChatTab({ editionId }: { editionId: string }) {
           m.system ? (
             <div key={m.id} className="muted center" style={{ fontSize: 13 }}>— {m.system.replace(/_/g, ' ')} —</div>
           ) : (
-            <div key={m.id} style={{ textAlign: m.mine ? 'right' : 'left' }}>
-              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{m.alias?.emoji} {m.alias?.name}</div>
-              <div style={{ display: 'inline-block', background: m.mine ? 'var(--primary)' : 'var(--soft)', color: m.mine ? 'var(--on-primary)' : 'var(--text)', padding: '8px 12px', borderRadius: 14 }}>
+            <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: m.mine ? 'flex-end' : 'flex-start', gap: 2 }}>
+              <div style={{ display: 'inline-block', maxWidth: '85%', background: m.mine ? 'var(--primary)' : 'var(--soft)', color: m.mine ? 'var(--on-primary)' : 'var(--text)', padding: '8px 12px', borderRadius: 14 }}>
                 {m.removed ? <em className="muted">{t('chat.removed')}</em> : m.body}
               </div>
+              {/* sender's alias sits under the bubble */}
+              {!m.removed && m.alias && <div style={{ fontSize: 11, color: 'var(--muted)', padding: '0 4px' }}>{m.alias.emoji} {m.alias.name}</div>}
             </div>
           ),
         )}
@@ -296,29 +361,6 @@ function ChatTab({ editionId }: { editionId: string }) {
   );
 }
 
-function PeopleTab({ editionId }: { editionId: string }) {
-  const { t } = useI18n();
-  const [data, setData] = useState<{ participants: ParticipantRow[]; summary: { confirmed: number; checked: number; total: number; drawn: boolean } } | null>(null);
-  useEffect(() => { void api.participants(editionId).then(setData); }, [editionId]);
-  if (!data) return <p className="muted center">{t('web.loading')}</p>;
-  return (
-    <div className="card stack">
-      <div className="muted" style={{ fontSize: 13 }}>
-        {data.summary.drawn
-          ? t('participants.summary_checked', { checked: data.summary.checked, total: data.summary.total })
-          : t('participants.summary_confirmed', { confirmed: data.summary.confirmed, total: data.summary.total })}
-      </div>
-      {data.participants.map((p) => (
-        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--line)', paddingBottom: 6 }}>
-          <span style={{ flex: 1, fontWeight: 600 }}>{p.firstName}{p.lastInitial ? ` ${p.lastInitial}.` : ''}{p.isYou ? ` (${t('people.you')})` : ''}{p.isAdmin ? ` · ${t('people.admin')}` : ''}</span>
-          <StatusChip status={p.status} />
-          <span>{p.wishlistState === 'published' ? '🎁' : p.wishlistState === 'surprise' ? '✨' : '—'}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function StatusChip({ status }: { status: ParticipantRow['status'] }) {
   const { t } = useI18n();
   const map: Record<ParticipantRow['status'], [string, string]> = {
@@ -330,11 +372,11 @@ function StatusChip({ status }: { status: ParticipantRow['status'] }) {
   return <span style={{ fontSize: 13, fontWeight: 700, color }}>{icon} {t('status.' + status)}</span>;
 }
 
-function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+function TabBar({ tab, setTab }: { tab: Tab | null; setTab: (t: Tab) => void }) {
   const { t } = useI18n();
-  const tabs: Array<[Tab, string]> = [['home', 'nav.home'], ['wishlists', 'nav.wishlists'], ['chat', 'nav.chat'], ['people', 'nav.people']];
+  const tabs: Array<[Tab, string]> = [['home', 'nav.home'], ['wishlists', 'nav.wishlists'], ['chat', 'nav.chat']];
   return (
-    <div style={{ position: 'sticky', bottom: 0, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 4, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 8, marginTop: 12 }}>
+    <div style={{ position: 'sticky', bottom: 0, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 4, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 8, marginTop: 12 }}>
       {tabs.map(([key, label]) => (
         <button key={key} onClick={() => setTab(key)} className="btn" style={{ minHeight: 44, background: tab === key ? 'var(--soft)' : 'transparent', color: tab === key ? 'var(--primary)' : 'var(--muted)', fontSize: 13 }}>
           {t(label)}

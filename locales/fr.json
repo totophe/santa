@@ -104,6 +104,7 @@
   "edition.run_draw_waiting": "Lancer le tirage · en attente de tous",
   "edition.open_chat_now": "Ouvrir le chat maintenant",
   "edition.drawn_for": "Tirage effectué pour {n, number}.",
+  "edition.chat_open_entry": "Le chat de groupe est ouvert",
   "edition.in_this_year": "Participez-vous cette année ?",
   "edition.ready_title": "Vous êtes prêt.",
   "edition.ready_body": "Le tirage a lieu quand tout le monde a confirmé. {confirmed, number} sur {total, number} confirmés.",
