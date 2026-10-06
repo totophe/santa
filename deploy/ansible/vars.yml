@@ -28,13 +28,14 @@ group_creation: "open"
 group_creation_allowlist: ""
 instance_admins: "jcc@cuvelier.co"
 
-# Outgoing mail — REQUIRED for a public instance (the spec uses Scaleway
-# Transactional Email). With smtp_host blank the app only logs codes.
-smtp_host: ""
-smtp_port: 587
-smtp_user: ""
+# Outgoing mail — Scaleway Transactional Email (TEM).
+# Non-secret bits here; the credentials (smtp_user = Project ID, smtp_password =
+# API secret key) go in .secrets.yml so they stay out of the (public) repo.
+smtp_host: "smtp.tem.scaleway.com"
+smtp_port: 587          # 587 = STARTTLS (smtp_secure false); use 465 for TLS (secure true)
 smtp_secure: false
-mail_from: "Santa <santa@totophe.com>"
+# MAIL_FROM must be an address at a domain verified in TEM.
+mail_from: "Santa <no-reply@totophe.com>"
 
 install_dir: "/opt/santa"
 inactive_group_years: 3

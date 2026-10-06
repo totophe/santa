@@ -183,6 +183,7 @@ export const api = {
       body: JSON.stringify({ firstName, lastName, language }),
     }),
   signOut: () => request<{ ok: true }>('/api/auth/signout', { method: 'POST' }),
+  deleteAccount: () => request<{ ok: true }>('/api/account', { method: 'DELETE' }),
 };
 
 export { ApiError };

@@ -50,6 +50,12 @@ export class I18nService {
     return this.isSupported(base) ? base : FALLBACK;
   }
 
+  /** Full app dictionary for a language, English as the fallback base (for the web client). */
+  getMessages(lang: string): Record<string, string> {
+    const l = this.normalize(lang);
+    return { ...(this.app.get(FALLBACK) ?? {}), ...(this.app.get(l) ?? {}) };
+  }
+
   t(
     key: string,
     opts: { lang?: string; theme?: string; vars?: Record<string, unknown> } = {},
