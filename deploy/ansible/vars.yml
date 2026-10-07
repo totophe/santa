@@ -7,13 +7,13 @@ santa_tag: "latest"
 
 # Public URL — served by the edge VPS (TLS + domain), proxied to this VM over
 # WireGuard. Baked into emails and QR codes, so it must be the public address.
-app_url: "https://santa.totophe.com"
+app_url: "https://santa.example.com"
 
 # The app listens on this port on the VM. Bind it to the WireGuard interface the
 # edge reaches (recommended) rather than the whole LAN. Leave app_bind empty for
 # 0.0.0.0 and restrict with the VM firewall instead.
 app_port: 3000
-app_bind: "10.200.75.10"   # the VM's WireGuard IP (wg0) — only the edge reaches it
+app_bind: ""               # e.g. the VM's WireGuard IP (wg0) so only the edge reaches it; empty = 0.0.0.0
 
 # Behind the edge reverse proxy, so read the client IP from X-Forwarded-For
 # (needed for the per-IP sign-in rate limit).
@@ -26,15 +26,20 @@ default_language: "en"
 # Hosted instance lets anyone create a group.
 group_creation: "open"
 group_creation_allowlist: ""
-instance_admins: "jcc@cuvelier.co"
+instance_admins: "you@example.com"
 
-# Outgoing mail — REQUIRED for a public instance (the spec uses Scaleway
-# Transactional Email). With smtp_host blank the app only logs codes.
-smtp_host: ""
-smtp_port: 587
-smtp_user: ""
+# Outgoing mail — Scaleway Transactional Email (TEM).
+# Non-secret bits here; the credentials (smtp_user = Project ID, smtp_password =
+# API secret key) go in .secrets.yml so they stay out of the (public) repo.
+smtp_host: "smtp.tem.scaleway.com"
+smtp_port: 587          # 587 = STARTTLS (smtp_secure false); use 465 for TLS (secure true)
 smtp_secure: false
-mail_from: "Santa <santa@totophe.com>"
+# MAIL_FROM must be an address at a domain verified in TEM.
+mail_from: "Santa <no-reply@example.com>"
 
 install_dir: "/opt/santa"
 inactive_group_years: 3
+
+# Family instances often sign in from one home network (shared public IP), so the
+# default of 20 sign-in emails/IP/hour is raised here.
+rate_limit_signin_per_ip: 100

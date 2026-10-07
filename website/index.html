@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Santa — secret gift exchanges that come back every year</title>
+    <meta name="description" content="Santa is a free, open-source web app for recurring secret gift exchanges: a lasting group, one edition a year, a draw nobody can see, and a wishlist per person." />
+    <meta property="og:title" content="Santa — secret gift exchanges, every year" />
+    <meta property="og:description" content="A lasting group, one edition a year, a draw nobody can see, a wishlist per person. Free & open source." />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Chewy&family=Mulish:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #fbf3e4; --surface: #fff; --text: #2b1d1a; --muted: #7a6a62;
+        --line: #e6d6bc; --primary: #c8102e; --on-primary: #fff6e5; --accent: #2a9d6f; --soft: #f3e3c6;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Mulish', system-ui, sans-serif; line-height: 1.6; }
+      h1, h2, h3 { font-family: 'Chewy', cursive; font-weight: 400; color: var(--primary); line-height: 1.1; margin: 0 0 .4em; }
+      a { color: var(--primary); }
+      .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+      .btn { display: inline-block; padding: 14px 26px; border-radius: 999px; font-weight: 700; text-decoration: none; }
+      .btn-primary { background: var(--primary); color: var(--on-primary); }
+      .btn-ghost { background: var(--soft); color: var(--text); }
+      header.hero { text-align: center; padding: 72px 0 40px; background:
+        repeating-linear-gradient(135deg, var(--primary) 0 14px, var(--bg) 14px 28px) top / 100% 12px no-repeat, var(--bg); }
+      header.hero h1 { font-size: clamp(44px, 9vw, 80px); }
+      header.hero p.lead { font-size: 20px; color: var(--muted); max-width: 620px; margin: 0 auto 28px; }
+      .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+      section { padding: 48px 0; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 28px; }
+      .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+      .card .emoji { font-size: 32px; }
+      .card h3 { font-size: 24px; margin-top: 10px; }
+      .card p { margin: 0; color: var(--muted); }
+      .band { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      pre { background: var(--text); color: var(--on-primary); padding: 16px 18px; border-radius: 12px; overflow: auto; font-size: 14px; }
+      footer { text-align: center; color: var(--muted); padding: 40px 0 60px; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <h1>Santa</h1>
+        <p class="lead">Secret gift exchanges that come back every year. A lasting group, one edition a year, a draw nobody can see, and a wishlist per person.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="https://santa.totophe.com">Open the app</a>
+          <a class="btn btn-ghost" href="https://github.com/totophe/santa">View on GitHub</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="wrap">
+      <h2>Why Santa</h2>
+      <div class="grid">
+        <div class="card"><div class="emoji">👪</div><h3>The group lasts</h3><p>Set up your family or friends once. Each year you start a new edition — no re-typing everyone.</p></div>
+        <div class="card"><div class="emoji">🤫</div><h3>A draw nobody can see</h3><p>Pairings are encrypted. Only the giver ever learns their recipient — not admins, not even the host by accident.</p></div>
+        <div class="card"><div class="emoji">🎁</div><h3>A wishlist per person</h3><p>Publish a list, or pick “Surprise me!”. Import last year’s ideas in a tap.</p></div>
+        <div class="card"><div class="emoji">✋</div><h3>Press &amp; hold to reveal</h3><p>Your recipient shows only while you hold — a glance at your phone gives nothing away.</p></div>
+        <div class="card"><div class="emoji">💬</div><h3>Anonymous chat</h3><p>Ask your giftee questions through an anonymous thread, and join a group chat where everyone has a playful alias.</p></div>
+        <div class="card"><div class="emoji">📧</div><h3>Email only when needed</h3><p>No spam, no push nagging, no tracking. Mail arrives only when there’s something to do.</p></div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <h2>Private by design</h2>
+        <p>A pairing is known to the giver only — not to admins, not to instance admins, not after the exchange. The draw is encrypted with a key kept outside the database. The honest limit: whoever holds both the database and the encryption key could decrypt it — the goal is to make peeking impossible by accident, not to resist a determined host.</p>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2>Self-host it</h2>
+      <p>Santa is free and <strong>MIT-licensed</strong>. Run your own instance with one container image and PostgreSQL:</p>
+      <pre>git clone https://github.com/totophe/santa
+cp .env.example .env   # set ENCRYPTION_KEY, SMTP, APP_URL
+docker compose up --build</pre>
+      <p>Configure everything with environment variables. See the <a href="https://github.com/totophe/santa#readme">README</a> and the <a href="https://github.com/totophe/santa/tree/main/deploy">deploy guide</a>.</p>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <p>Santa · free &amp; open source (MIT) · <a href="https://github.com/totophe/santa">github.com/totophe/santa</a></p>
+      </div>
+    </footer>
+  </body>
+</html>

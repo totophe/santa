@@ -50,6 +50,7 @@ export class EditionsService {
       groupId: ctx.group.id,
       groupName: ctx.group.name,
       isAdmin: ctx.isAdmin,
+      chatOpen: !!ctx.edition.chatOpenedAt,
       inviteUrl: ctx.isAdmin ? this.groups.inviteUrl(ctx.edition.inviteToken) : undefined,
       daysToGo: daysUntil(ctx.edition.exchangeDate),
     };

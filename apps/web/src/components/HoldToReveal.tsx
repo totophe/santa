@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useI18n } from '../i18n';
 
 const HOLD_MS = 1000;
 
 interface Props {
   /** Fetched only when the hold completes — never preloaded or cached. */
   onReveal: () => Promise<string>;
-  label?: string;
 }
 
 type Phase = 'idle' | 'holding' | 'revealed';
@@ -15,10 +15,12 @@ type Phase = 'idle' | 'holding' | 'revealed';
  * hold completes, shown while the press lasts, and hidden the instant it ends.
  * Holding Space or Enter works too. Honours prefers-reduced-motion.
  */
-export function HoldToReveal({ onReveal, label = 'Press and hold to reveal' }: Props) {
+export function HoldToReveal({ onReveal }: Props) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<Phase>('idle');
   const [pct, setPct] = useState(0);
   const [name, setName] = useState<string | null>(null);
+  const [revealId, setRevealId] = useState(0);
   const raf = useRef<number | null>(null);
   const start = useRef(0);
   const done = useRef(false);
@@ -42,6 +44,7 @@ export function HoldToReveal({ onReveal, label = 'Press and hold to reveal' }: P
           const revealed = await onReveal();
           // Only show if still holding.
           setName(revealed);
+          setRevealId((n) => n + 1);
           setPhase('revealed');
         } catch {
           reset();
@@ -72,19 +75,12 @@ export function HoldToReveal({ onReveal, label = 'Press and hold to reveal' }: P
 
   return (
     <div className="stack" style={{ gap: 14 }}>
-      <div
-        aria-live="polite"
-        style={{
-          minHeight: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'Chewy, cursive',
-          fontSize: 48,
-          color: 'var(--primary)',
-        }}
-      >
-        {showName ? name : ''}
+      <div className="reveal-slot" aria-live="polite">
+        {showName ? (
+          <div key={revealId} className="reveal-name">{name}</div>
+        ) : (
+          <div className={phase === 'holding' ? 'reveal-redacted reveal-shake' : 'reveal-redacted'}>{t('draw.hidden')}</div>
+        )}
       </div>
       <button
         type="button"
@@ -117,7 +113,7 @@ export function HoldToReveal({ onReveal, label = 'Press and hold to reveal' }: P
           }}
         />
         <span style={{ position: 'relative', color: phase === 'idle' ? 'var(--text)' : 'var(--on-primary)' }}>
-          {showName ? 'Release to hide' : phase === 'holding' ? 'Keep holding…' : label}
+          {showName ? t('draw.release_to_hide') : phase === 'holding' ? t('draw.keep_holding') : t('draw.press_hold')}
         </span>
       </button>
     </div>

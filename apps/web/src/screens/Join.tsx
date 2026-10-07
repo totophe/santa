@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useI18n } from '../i18n';
 
 export function Join({
   token,
@@ -12,6 +13,7 @@ export function Join({
   onNeedsAuth: () => void;
   onJoined: (editionId: string) => void;
 }) {
+  const { t } = useI18n();
   const [info, setInfo] = useState<{ state: string; groupName?: string; editionName?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,12 +22,12 @@ export function Join({
     void api.joinInfo(token).then(setInfo);
   }, [token]);
 
-  if (!info) return <p className="muted center">Loading…</p>;
+  if (!info) return <p className="muted center">{t('web.loading')}</p>;
   if (info.state !== 'open')
     return (
       <div className="card center">
-        <h2 style={{ fontSize: 22 }}>This invite isn’t available</h2>
-        <p className="muted">{info.state === 'closed' ? 'Entries are closed — the draw has run.' : 'This link is no longer valid.'}</p>
+        <h2 style={{ fontSize: 22 }}>{t('join.unavailable_title')}</h2>
+        <p className="muted">{info.state === 'closed' ? t('join.closed') : t('join.revoked')}</p>
       </div>
     );
 
@@ -40,7 +42,7 @@ export function Join({
       const { editionId } = await api.join(token);
       onJoined(editionId);
     } catch {
-      setError('Could not join — the group may be full or the link revoked.');
+      setError(t('create.error'));
     } finally {
       setBusy(false);
     }
@@ -50,9 +52,9 @@ export function Join({
     <div className="card center stack">
       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{info.groupName}</div>
       <h1 style={{ fontSize: 32 }}>{info.editionName}</h1>
-      <p className="muted">You’ve been invited to join this gift exchange.</p>
+      <p className="muted">{t('join.invited_body')}</p>
       {error && <p className="error">{error}</p>}
-      <button className="btn btn-primary" disabled={busy} onClick={join}>{authed ? 'Join' : 'Sign in to join'}</button>
+      <button className="btn btn-primary" disabled={busy} onClick={join}>{authed ? t('action.join') : t('join.signin_to_join')}</button>
     </div>
   );
 }
