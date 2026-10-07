@@ -9,6 +9,7 @@ export function TopBar({
   onHome,
   onAccount,
   onSignOut,
+  onAbout,
   onUserUpdated,
 }: {
   meta: PublicMeta | null;
@@ -16,6 +17,7 @@ export function TopBar({
   onHome: () => void;
   onAccount: () => void;
   onSignOut: () => void;
+  onAbout: () => void;
   onUserUpdated: (u: SessionUser) => void;
 }) {
   const { t, lang, setLang } = useI18n();
@@ -107,6 +109,9 @@ export function TopBar({
                   {l.toUpperCase()} {l === lang ? '✓' : ''}
                 </button>
               ))}
+              <button style={{ ...item, borderTop: '1px solid var(--line)' }} onClick={() => { setOpen(false); onAbout(); }}>
+                {t('action.about')}
+              </button>
               {authed && (
                 <button
                   style={{ ...item, color: 'var(--danger)', borderTop: '1px solid var(--line)' }}

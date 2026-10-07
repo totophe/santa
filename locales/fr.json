@@ -71,6 +71,10 @@
 
   "action.account": "Compte",
   "action.delete_account": "Supprimer mon compte",
+  "action.about": "À propos",
+  "about.body": "Santa est une application libre et open-source pour les échanges de cadeaux secrets récurrents — un groupe qui dure, une édition par an, et un tirage que personne ne voit.",
+  "about.source": "Voir le code sur GitHub",
+  "about.license": "Open source · licence MIT",
   "web.loading": "Chargement…",
   "update.available": "Une nouvelle version est disponible.",
   "action.reload": "Recharger",

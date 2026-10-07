@@ -3,6 +3,7 @@ import { api, type PublicMeta, type SessionUser } from './api';
 import { useI18n } from './i18n';
 import { TopBar } from './components/TopBar';
 import { UpdateBanner } from './components/UpdateBanner';
+import { About } from './components/About';
 import { AuthFlow } from './screens/AuthFlow';
 import { Home } from './screens/Home';
 import { Edition } from './screens/Edition';
@@ -23,6 +24,7 @@ export default function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [view, setView] = useState<View>({ kind: 'home' });
   const [joinToken, setJoinToken] = useState<string | null>(null);
+  const [showAbout, setShowAbout] = useState(false);
 
   useEffect(() => {
     const m = /^\/join\/([^/]+)/.exec(window.location.pathname);
@@ -70,9 +72,12 @@ export default function App() {
           onHome={goHome}
           onAccount={() => setView({ kind: 'account' })}
           onSignOut={signOut}
+          onAbout={() => setShowAbout(true)}
           onUserUpdated={setUser}
         />
       )}
+
+      {showAbout && <About meta={meta} onClose={() => setShowAbout(false)} />}
 
       {loading && <p className="muted center">…</p>}
 

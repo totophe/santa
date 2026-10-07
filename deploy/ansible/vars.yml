@@ -7,13 +7,13 @@ santa_tag: "latest"
 
 # Public URL — served by the edge VPS (TLS + domain), proxied to this VM over
 # WireGuard. Baked into emails and QR codes, so it must be the public address.
-app_url: "https://santa.totophe.com"
+app_url: "https://santa.example.com"
 
 # The app listens on this port on the VM. Bind it to the WireGuard interface the
 # edge reaches (recommended) rather than the whole LAN. Leave app_bind empty for
 # 0.0.0.0 and restrict with the VM firewall instead.
 app_port: 3000
-app_bind: "10.200.75.10"   # the VM's WireGuard IP (wg0) — only the edge reaches it
+app_bind: ""               # e.g. the VM's WireGuard IP (wg0) so only the edge reaches it; empty = 0.0.0.0
 
 # Behind the edge reverse proxy, so read the client IP from X-Forwarded-For
 # (needed for the per-IP sign-in rate limit).
@@ -26,7 +26,7 @@ default_language: "en"
 # Hosted instance lets anyone create a group.
 group_creation: "open"
 group_creation_allowlist: ""
-instance_admins: "jcc@cuvelier.co"
+instance_admins: "you@example.com"
 
 # Outgoing mail — Scaleway Transactional Email (TEM).
 # Non-secret bits here; the credentials (smtp_user = Project ID, smtp_password =
@@ -35,7 +35,7 @@ smtp_host: "smtp.tem.scaleway.com"
 smtp_port: 587          # 587 = STARTTLS (smtp_secure false); use 465 for TLS (secure true)
 smtp_secure: false
 # MAIL_FROM must be an address at a domain verified in TEM.
-mail_from: "Santa <no-reply@totophe.com>"
+mail_from: "Santa <no-reply@example.com>"
 
 install_dir: "/opt/santa"
 inactive_group_years: 3
