@@ -57,8 +57,9 @@ export function TopBar({
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, position: 'relative', zIndex: 30 }}>
       <button
         onClick={() => authed && onHome()}
-        style={{ background: 'none', border: 'none', cursor: authed ? 'pointer' : 'default', fontFamily: 'Chewy, cursive', fontSize: 26, color: 'var(--primary)', padding: 0 }}
+        style={{ background: 'none', border: 'none', cursor: authed ? 'pointer' : 'default', fontFamily: 'Chewy, cursive', fontSize: 26, color: 'var(--primary)', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}
       >
+        <img src="/brand/fox-mark.png" alt="" width={32} height={32} style={{ display: 'block' }} />
         {meta?.instanceName ?? 'Santa'}
       </button>
 

@@ -64,9 +64,11 @@ function SignIn({ onSent }: { onSent: (email: string, shared: boolean) => void }
     }
   }
   return (
-    <form className="card stack" onSubmit={submit}>
-      <h2 style={{ fontSize: 26 }}>{t('signin.title')}</h2>
-      <p className="muted" style={{ marginTop: -4 }}>{t('app.tagline')}</p>
+    <div className="stack">
+      <img src="/illustrations/welcome.webp" alt="" style={{ width: '100%', borderRadius: 16, display: 'block' }} />
+      <form className="card stack" onSubmit={submit}>
+        <h2 style={{ fontSize: 26 }}>{t('signin.title')}</h2>
+        <p className="muted" style={{ marginTop: -4 }}>{t('app.tagline')}</p>
       <div className="field">
         <label htmlFor="email">{t('signin.email_label')}</label>
         <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -75,9 +77,10 @@ function SignIn({ onSent }: { onSent: (email: string, shared: boolean) => void }
         <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
         <span>{t('signin.shared_device')}<br /><span className="muted" style={{ fontSize: 13 }}>{t('signin.shared_device_hint')}</span></span>
       </label>
-      {error && <p className="error">{error}</p>}
-      <button className="btn btn-primary" disabled={busy} type="submit">{busy ? t('signin.sending') : t('action.send_code')}</button>
-    </form>
+        {error && <p className="error">{error}</p>}
+        <button className="btn btn-primary" disabled={busy} type="submit">{busy ? t('signin.sending') : t('action.send_code')}</button>
+      </form>
+    </div>
   );
 }
 
