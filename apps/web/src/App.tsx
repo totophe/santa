@@ -4,10 +4,12 @@ import { useI18n } from './i18n';
 import { TopBar } from './components/TopBar';
 import { UpdateBanner } from './components/UpdateBanner';
 import { About } from './components/About';
+import { BottomNav, type EdTab, type NavKind } from './components/BottomNav';
 import { AuthFlow } from './screens/AuthFlow';
 import { Home } from './screens/Home';
 import { Edition } from './screens/Edition';
 import { Group } from './screens/Group';
+import { Admin } from './screens/Admin';
 import { Join } from './screens/Join';
 import { Account } from './screens/Account';
 
@@ -15,7 +17,8 @@ type View =
   | { kind: 'home' }
   | { kind: 'edition'; editionId: string }
   | { kind: 'group'; groupId: string }
-  | { kind: 'account' };
+  | { kind: 'account' }
+  | { kind: 'admin' };
 
 export default function App() {
   const { setLang } = useI18n();
@@ -23,6 +26,9 @@ export default function App() {
   const [meta, setMeta] = useState<PublicMeta | null>(null);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [view, setView] = useState<View>({ kind: 'home' });
+  // Edition section is owned here so the global bottom bar can drive it.
+  // null means "not chosen yet" — the Edition picks a state-aware default on load.
+  const [edTab, setEdTab] = useState<EdTab | null>(null);
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [showAbout, setShowAbout] = useState(false);
 
@@ -45,6 +51,7 @@ export default function App() {
 
   function openEdition(editionId: string) {
     setJoinToken(null);
+    setEdTab(null); // reset so the edition re-picks its default section
     if (window.location.pathname !== '/') window.history.replaceState({}, '', '/');
     setView({ kind: 'edition', editionId });
   }
@@ -61,6 +68,7 @@ export default function App() {
   }
 
   const authed = !!(user && user.profileComplete);
+  const showChrome = !loading && !joinToken && authed;
 
   return (
     <div className="shell">
@@ -96,25 +104,40 @@ export default function App() {
         <AuthFlow meta={meta} initialUser={user} onAuthed={(u) => { setUser(u); setLang(u.language); }} />
       )}
 
-      {!loading && !joinToken && authed && view.kind === 'home' && (
-        <Home meta={meta} onOpenEdition={openEdition} onOpenAccount={() => setView({ kind: 'account' })} />
+      {showChrome && view.kind === 'home' && (
+        <Home meta={meta} onOpenEdition={openEdition} onOpenGroup={(groupId) => setView({ kind: 'group', groupId })} />
       )}
 
-      {!loading && !joinToken && authed && view.kind === 'account' && user && (
-        <Account user={user} meta={meta} onUpdated={setUser} onBack={goHome} onSignedOut={signOut} />
+      {showChrome && view.kind === 'account' && user && (
+        <Account user={user} meta={meta} onUpdated={setUser} onSignedOut={signOut} />
       )}
 
-      {!loading && !joinToken && authed && view.kind === 'edition' && (
+      {showChrome && view.kind === 'admin' && user?.isInstanceAdmin && <Admin />}
+
+      {showChrome && view.kind === 'edition' && (
         <Edition
           editionId={view.editionId}
           meta={meta}
-          onBack={goHome}
+          tab={edTab}
+          onTab={setEdTab}
           onOpenGroup={(groupId) => setView({ kind: 'group', groupId })}
         />
       )}
 
-      {!loading && !joinToken && authed && view.kind === 'group' && (
-        <Group groupId={view.groupId} onOpenEdition={openEdition} onBack={goHome} />
+      {showChrome && view.kind === 'group' && (
+        <Group groupId={view.groupId} meta={meta} onOpenEdition={openEdition} onLeft={goHome} />
+      )}
+
+      {showChrome && (
+        <BottomNav
+          kind={view.kind as NavKind}
+          user={user}
+          editionTab={edTab ?? 'people'}
+          onHome={goHome}
+          onAccount={() => setView({ kind: 'account' })}
+          onAdmin={() => setView({ kind: 'admin' })}
+          onEditionTab={setEdTab}
+        />
       )}
     </div>
   );

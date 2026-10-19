@@ -13,6 +13,11 @@ export class InstanceController {
     return this.instance.overview();
   }
 
+  @Get('users')
+  users() {
+    return this.instance.users();
+  }
+
   @Delete('groups/:groupId')
   deleteGroup(@Param('groupId') groupId: string) {
     return this.instance.deleteGroup(groupId);

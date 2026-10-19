@@ -5,11 +5,11 @@ import { useI18n } from '../i18n';
 export function Home({
   meta,
   onOpenEdition,
-  onOpenAccount,
+  onOpenGroup,
 }: {
   meta: PublicMeta | null;
   onOpenEdition: (editionId: string) => void;
-  onOpenAccount: () => void;
+  onOpenGroup: (groupId: string) => void;
 }) {
   const { t } = useI18n();
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
@@ -30,6 +30,7 @@ export function Home({
     <div className="stack">
       {groups.length === 0 && (
         <div className="card stack center">
+          <img src="/illustrations/no-group.webp" alt="" style={{ width: 220, maxWidth: '75%', margin: '0 auto', display: 'block', borderRadius: 16 }} />
           <h2 style={{ fontSize: 24 }}>{t('home.no_group_title')}</h2>
           <p className="muted">{t('home.no_group_body')}</p>
         </div>
@@ -38,8 +39,8 @@ export function Home({
         <button
           key={g.id}
           className="card"
-          style={{ textAlign: 'left', cursor: g.currentEdition ? 'pointer' : 'default', border: '1px solid var(--line)' }}
-          onClick={() => g.currentEdition && onOpenEdition(g.currentEdition.id)}
+          style={{ textAlign: 'left', cursor: 'pointer', border: '1px solid var(--line)' }}
+          onClick={() => (g.currentEdition ? onOpenEdition(g.currentEdition.id) : onOpenGroup(g.id))}
         >
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{g.name}</div>
           {g.currentEdition ? (
@@ -59,8 +60,6 @@ export function Home({
       {meta?.groupCreationOpen && (
         <button className="btn btn-primary" onClick={() => setCreating(true)}>{t('action.create_group')}</button>
       )}
-      <div className="spacer" />
-      <button className="btn btn-ghost" onClick={onOpenAccount}>{t('action.account')}</button>
     </div>
   );
 }

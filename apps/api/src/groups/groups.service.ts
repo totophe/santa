@@ -1,10 +1,11 @@
 import {
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Sequelize, Op } from '@sequelize/core';
+import { Sequelize, Op, type Transaction } from '@sequelize/core';
 import { SEQUELIZE } from '../database/database.module';
 import { CONFIG, type AppConfig } from '../config/env';
 import {
@@ -16,7 +17,8 @@ import {
 } from '../database/models';
 import { randomUrlToken } from '../auth/tokens';
 import type { SessionUser } from '../auth/auth.service';
-import type { CreateGroupDto } from './dto';
+import type { CreateGroupDto, EditionInputDto } from './dto';
+import { AccessService } from './access.service';
 import { RateLimitService, DAY } from '../safety/rate-limit.service';
 
 export interface EditionSummary {
@@ -45,6 +47,7 @@ export class GroupsService {
   constructor(
     @Inject(SEQUELIZE) private readonly sequelize: Sequelize,
     @Inject(CONFIG) private readonly config: AppConfig,
+    private readonly access: AccessService,
     private readonly rateLimit: RateLimitService,
   ) {}
 
@@ -87,32 +90,7 @@ export class GroupsService {
         { transaction: tx },
       );
 
-      const edition = await Edition.create(
-        {
-          groupId: group.id,
-          name: dto.edition.name.trim(),
-          theme: dto.edition.theme ?? 'generic',
-          exchangeDate: dto.edition.exchangeDate ?? null,
-          timezone: dto.edition.timezone ?? null,
-          budgetAmount: dto.edition.budgetAmount ?? null,
-          budgetCurrency: dto.edition.budgetCurrency ?? null,
-          state: 'open',
-          inviteToken: randomUrlToken(16),
-        },
-        { transaction: tx },
-      );
-
-      // The creator is the first admin and a confirmed participant.
-      await Participant.create(
-        {
-          editionId: edition.id,
-          userId: user.id,
-          status: 'confirmed',
-          confirmedAt: new Date(),
-        },
-        { transaction: tx },
-      );
-
+      const edition = await this.buildEdition(tx, group.id, user, dto.edition);
       return { group, edition };
     });
 
@@ -120,6 +98,100 @@ export class GroupsService {
       ...result,
       inviteUrl: this.inviteUrl(result.edition.inviteToken),
     };
+  }
+
+  /**
+   * Create an edition (open, with a fresh invite token) and enrol the creator as
+   * a confirmed participant. Shared by group creation and starting a new edition.
+   */
+  private async buildEdition(
+    tx: Transaction,
+    groupId: string,
+    user: SessionUser,
+    input: EditionInputDto,
+  ): Promise<Edition> {
+    const edition = await Edition.create(
+      {
+        groupId,
+        name: input.name.trim(),
+        theme: input.theme ?? 'generic',
+        exchangeDate: input.exchangeDate ?? null,
+        timezone: input.timezone ?? null,
+        budgetAmount: input.budgetAmount ?? null,
+        budgetCurrency: input.budgetCurrency ?? null,
+        state: 'open',
+        inviteToken: randomUrlToken(16),
+      },
+      { transaction: tx },
+    );
+    // The creator is a confirmed participant from the start.
+    await Participant.create(
+      {
+        editionId: edition.id,
+        userId: user.id,
+        status: 'confirmed',
+        confirmedAt: new Date(),
+      },
+      { transaction: tx },
+    );
+    return edition;
+  }
+
+  /**
+   * Start a new edition in an existing group (admins only). Enforces the
+   * "one live edition at a time" rule so the recurring group reuses cleanly;
+   * the new edition chains into the draw no-repeat lookback automatically.
+   */
+  async createEdition(
+    groupId: string,
+    user: SessionUser,
+    input: EditionInputDto,
+  ): Promise<{ edition: Edition; inviteUrl: string }> {
+    await this.access.requireAdmin(groupId, user.id);
+    if (await this.currentEdition(groupId)) {
+      throw new ConflictException('edition_in_progress');
+    }
+    const edition = await this.sequelize.transaction((tx) =>
+      this.buildEdition(tx, groupId, user, input),
+    );
+    const group = await Group.findByPk(groupId);
+    if (group) {
+      group.lastActivityAt = new Date();
+      await group.save();
+    }
+    return { edition, inviteUrl: this.inviteUrl(edition.inviteToken) };
+  }
+
+  /**
+   * Leave a group. Blocked when it would strand the group or break a live draw:
+   * the sole member should delete instead; a sole admin must promote a successor
+   * first; and someone still inside a drawn (non-archived) edition can't slip out
+   * without breaking the loop (that path is admin removal, which repairs it).
+   */
+  async leaveGroup(groupId: string, user: SessionUser): Promise<{ ok: true }> {
+    const membership = await this.access.requireMember(groupId, user.id);
+
+    const memberCount = await Membership.count({ where: { groupId } });
+    if (memberCount <= 1) throw new ConflictException('delete_instead');
+    if (membership.role === 'admin') {
+      const adminCount = await Membership.count({ where: { groupId, role: 'admin' } });
+      if (adminCount <= 1) throw new ConflictException('promote_another_admin_first');
+    }
+
+    const drawn = await Edition.findAll({ where: { groupId, state: 'drawn' } });
+    for (const e of drawn) {
+      const p = await Participant.findOne({ where: { editionId: e.id, userId: user.id } });
+      if (p) throw new ConflictException('active_draw');
+    }
+
+    const open = await Edition.findAll({ where: { groupId, state: 'open' } });
+    await this.sequelize.transaction(async (tx) => {
+      for (const e of open) {
+        await Participant.destroy({ where: { editionId: e.id, userId: user.id }, transaction: tx });
+      }
+      await membership.destroy({ transaction: tx });
+    });
+    return { ok: true as const };
   }
 
   inviteUrl(token: string | null): string {

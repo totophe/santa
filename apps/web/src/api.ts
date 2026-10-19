@@ -5,6 +5,7 @@ export interface SessionUser {
   lastName: string | null;
   language: string;
   profileComplete: boolean;
+  isInstanceAdmin: boolean;
 }
 
 export interface ThemeInfo {
@@ -118,6 +119,41 @@ export interface DrawCard {
   exchangeDate?: string | null;
 }
 
+// Instance admin view — counts/metadata only, never any draw assignment.
+export interface InstanceEdition {
+  id: string;
+  name: string;
+  theme: string;
+  state: string;
+  exchangeDate: string | null;
+  participants: number;
+  confirmed: number;
+  drawn: boolean;
+}
+export interface InstanceGroup {
+  id: string;
+  name: string;
+  creatorEmail: string | null;
+  memberCount: number;
+  editionCount: number;
+  createdAt: string;
+  lastActivityAt: string | null;
+  editions: InstanceEdition[];
+}
+export interface InstanceOverview {
+  totals: { accounts: number; groups: number; editions: number };
+  groups: InstanceGroup[];
+}
+export interface InstanceUser {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  createdAt: string;
+  lastSeenAt: string | null;
+  groupCount: number;
+}
+
 export const api = {
   meta: () => request<PublicMeta>('/api/meta'),
   me: () => request<{ user: SessionUser }>('/api/auth/me'),
@@ -130,6 +166,21 @@ export const api = {
     }),
 
   group: (id: string) => request<GroupDetail>(`/api/groups/${id}`),
+  createEdition: (groupId: string, body: Record<string, unknown>) =>
+    request<{ edition: { id: string }; inviteUrl: string }>(`/api/groups/${groupId}/editions`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  leaveGroup: (groupId: string) =>
+    request<{ ok: true }>(`/api/groups/${groupId}/leave`, { method: 'POST' }),
+  deleteGroup: (groupId: string, confirmName: string) =>
+    request<{ ok: true }>(`/api/groups/${groupId}`, { method: 'DELETE', body: JSON.stringify({ confirmName }) }),
+
+  instanceOverview: () => request<InstanceOverview>('/api/instance'),
+  instanceUsers: () => request<{ users: InstanceUser[] }>('/api/instance/users'),
+  instanceDeleteGroup: (groupId: string) =>
+    request<{ ok: true }>(`/api/instance/groups/${groupId}`, { method: 'DELETE' }),
+
   saveEditionSettings: (id: string, body: Record<string, unknown>) =>
     request<{ ok: true }>(`/api/editions/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   archiveEditionReq: (id: string) => request<{ ok: true }>(`/api/editions/${id}/archive`, { method: 'POST' }),

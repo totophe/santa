@@ -174,6 +174,44 @@ button:focus-visible {
   flex: 1;
 }
 
+/* One sticky bottom bar for the whole app; contents adapt to context. */
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding-top: 12px;
+  display: grid;
+  gap: 4px;
+  /* fade content out behind the bar as it scrolls under */
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+.bottom-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: 'Mulish', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+}
+.bottom-nav button.active {
+  background: var(--soft);
+  color: var(--primary);
+  border-color: var(--soft);
+}
+.bottom-nav .icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
 /* Hold-to-reveal: a redacted "TOP SECRET" bar that spins to reveal the name. */
 .reveal-slot {
   min-height: 72px;
