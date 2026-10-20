@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Op } from '@sequelize/core';
 import { Edition, Group, Membership, Participant, User } from '../database/models';
 
 // Invariant #1 (draw secrecy): everything here is counts/metadata only. No
@@ -67,6 +68,9 @@ export class InstanceService {
   async deleteGroup(groupId: string) {
     const group = await Group.findByPk(groupId);
     if (!group) throw new NotFoundException();
+    // Same rule as admin delete: a group holding a completed draw is never destroyed.
+    const drawn = await Edition.count({ where: { groupId, drawnAt: { [Op.ne]: null } } });
+    if (drawn > 0) throw new ConflictException('group_has_drawn_edition');
     await group.destroy();
     return { ok: true as const };
   }

@@ -181,8 +181,9 @@ function GroupActions({ group, isAdmin, onLeft }: { group: GroupDetail; isAdmin:
     try {
       await api.deleteGroup(group.id, typed);
       onLeft();
-    } catch {
-      window.alert(t('error.generic'));
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : '';
+      window.alert(t(code === 'group_has_drawn_edition' ? 'group.delete_err_drawn' : 'error.generic'));
     } finally {
       setBusy(false);
     }
@@ -192,7 +193,10 @@ function GroupActions({ group, isAdmin, onLeft }: { group: GroupDetail; isAdmin:
     <div className="card stack">
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('group.manage')}</div>
       <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={leave}>{t('group.leave')}</button>
-      {isAdmin && <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={remove}>{t('group.delete')}</button>}
+      {isAdmin && (group.hasDrawnEdition
+        ? <p className="muted" style={{ fontSize: 13, textAlign: 'center' }}>{t('group.delete_blocked_drawn')}</p>
+        : <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={remove}>{t('group.delete')}</button>
+      )}
     </div>
   );
 }
