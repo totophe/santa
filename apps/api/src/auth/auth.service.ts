@@ -31,6 +31,8 @@ export interface SessionUser {
   lastName: string | null;
   language: string;
   profileComplete: boolean;
+  /** True when this address is in INSTANCE_ADMINS — gates the read-only admin view. */
+  isInstanceAdmin: boolean;
 }
 
 export interface VerifyResult {
@@ -239,6 +241,7 @@ export class AuthService {
       lastName: user.lastName,
       language: user.language,
       profileComplete: !!user.firstName && user.firstName.trim().length > 0,
+      isInstanceAdmin: this.config.instanceAdmins.includes(user.email.toLowerCase()),
     };
   }
 }

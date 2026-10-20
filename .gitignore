@@ -12,3 +12,8 @@ apps/api/dist/
 
 # Ansible deployment secrets (encryption key, DB/SMTP passwords) — never commit.
 deploy/ansible/.secrets.yml
+
+# Local, unversioned files: DB backups (dump + encryption key) and large
+# archives (e.g. the old santa.be site). Never commit — treat as secrets.
+/local-backups/
+/local-files/

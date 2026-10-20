@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { api, type EditionDetail, type MyWishlist, type ParticipantRow, type PublicMeta } from '../api';
+import type { EdTab } from '../components/BottomNav';
 import { HoldToReveal } from '../components/HoldToReveal';
 import { applyTheme } from '../theme';
 import { useI18n } from '../i18n';
-
-type Tab = 'home' | 'wishlists' | 'chat';
 
 /** Locale-aware currency (thousands separators + symbol), falling back gracefully. */
 function fmtBudget(amount: string, currency: string | null, lang: string): string {
@@ -17,10 +17,21 @@ function fmtBudget(amount: string, currency: string | null, lang: string): strin
   }
 }
 
-export function Edition({ editionId, meta, onBack, onOpenGroup }: { editionId: string; meta: PublicMeta | null; onBack: () => void; onOpenGroup: (groupId: string) => void }) {
+export function Edition({
+  editionId,
+  meta,
+  tab,
+  onTab,
+  onOpenGroup,
+}: {
+  editionId: string;
+  meta: PublicMeta | null;
+  tab: EdTab | null;
+  onTab: (t: EdTab) => void;
+  onOpenGroup: (groupId: string) => void;
+}) {
   const { t, lang } = useI18n();
   const [detail, setDetail] = useState<EditionDetail | null>(null);
-  const [tab, setTab] = useState<Tab>('home');
   const [showAdmin, setShowAdmin] = useState(false);
 
   const load = useCallback(async () => {
@@ -33,16 +44,19 @@ export function Edition({ editionId, meta, onBack, onOpenGroup }: { editionId: s
     return () => applyTheme(meta, null);
   }, [load, meta]);
 
-  function goTab(tb: Tab) {
-    setShowAdmin(false);
-    setTab(tb);
-  }
+  // Pick a state-aware default section on first load: once chat is open it leads.
+  useEffect(() => {
+    if (detail && tab === null) onTab(detail.chatOpen ? 'chat' : 'people');
+  }, [detail, tab, onTab]);
+
+  // Switching section leaves the admin panel.
+  useEffect(() => { setShowAdmin(false); }, [tab]);
 
   if (!detail) return <p className="muted center">{t('web.loading')}</p>;
+  const active: EdTab = tab ?? (detail.chatOpen ? 'chat' : 'people');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '70vh' }}>
-      <button className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={onBack}>{t('web.back_home')}</button>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <button onClick={() => onOpenGroup(detail.groupId)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>
@@ -54,6 +68,7 @@ export function Edition({ editionId, meta, onBack, onOpenGroup }: { editionId: s
             {detail.budgetAmount && <Chip>{t('edition.budget', { amount: fmtBudget(detail.budgetAmount, detail.budgetCurrency, lang) })}</Chip>}
           </div>
         </div>
+        <img src={`/illustrations/motif-${detail.theme === 'santa' ? 'santa' : 'generic'}.webp`} alt="" style={{ height: 44, alignSelf: 'center', flexShrink: 0 }} />
         {detail.isAdmin && (
           <button aria-label={t('action.settings')} onClick={() => setShowAdmin((s) => !s)} className="btn btn-soft" style={{ width: 'auto', minHeight: 44, padding: '0 12px' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,19 +78,16 @@ export function Edition({ editionId, meta, onBack, onOpenGroup }: { editionId: s
         )}
       </div>
 
-      <div style={{ flex: 1 }}>
-        {showAdmin ? (
-          <AdminPanel detail={detail} reload={load} />
-        ) : (
-          <>
-            {tab === 'home' && <HomeTab detail={detail} reload={load} goChat={() => goTab('chat')} />}
-            {tab === 'wishlists' && <WishlistsTab editionId={editionId} />}
-            {tab === 'chat' && <ChatTab editionId={editionId} />}
-          </>
-        )}
-      </div>
-
-      <TabBar tab={showAdmin ? null : tab} setTab={goTab} />
+      {showAdmin ? (
+        <AdminPanel detail={detail} reload={load} />
+      ) : (
+        <div className="stack">
+          <ActionBlock detail={detail} reload={load} />
+          {active === 'people' && <PeopleSection detail={detail} />}
+          {active === 'lists' && <WishlistsTab editionId={editionId} />}
+          {active === 'chat' && <ChatTab editionId={editionId} />}
+        </div>
+      )}
     </div>
   );
 }
@@ -84,37 +96,8 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--soft)', fontSize: 13, fontWeight: 700 }}>{children}</span>;
 }
 
-function InviteCard({ url, groupName }: { url: string; groupName: string }) {
-  const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-  return (
-    <div className="card stack">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 22 }}>🎟️</span>
-        <h2 style={{ fontSize: 22, flex: 1 }}>{t('edition.invite_people')}</h2>
-      </div>
-      <p className="muted" style={{ marginTop: -6, fontSize: 14 }}>{t('edition.invite_hint')}</p>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {canShare && (
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { void navigator.share({ title: groupName, url }).catch(() => {}); }}>
-            {t('edition.share')}
-          </button>
-        )}
-        <button
-          className="btn btn-soft"
-          style={{ flex: 1 }}
-          onClick={() => { void navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-        >
-          {copied ? t('edition.invite_copied') : t('edition.invite_copy')}
-        </button>
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>{url}</div>
-    </div>
-  );
-}
-
-function HomeTab({ detail, reload, goChat }: { detail: EditionDetail; reload: () => Promise<void>; goChat: () => void }) {
+/** Time-critical, state-driven actions that must never hide behind a tab. */
+function ActionBlock({ detail, reload }: { detail: EditionDetail; reload: () => Promise<void> }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [card, setCard] = useState<Awaited<ReturnType<typeof api.drawCard>> | null>(null);
@@ -128,20 +111,8 @@ function HomeTab({ detail, reload, goChat }: { detail: EditionDetail; reload: ()
     try { await fn(); await reload(); } finally { setBusy(false); }
   }
 
-  const chatEntry = detail.chatOpen && (
-    <button className="card" onClick={goChat} style={{ textAlign: 'left', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-      <span style={{ fontSize: 24 }}>💬</span>
-      <span style={{ flex: 1, fontWeight: 700 }}>{t('edition.chat_open_entry')}</span>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.4" strokeLinecap="round"><path d="m9 6 6 6-6 6" /></svg>
-    </button>
-  );
-
   return (
-    <div className="stack">
-      {detail.isAdmin && detail.state === 'open' && detail.inviteUrl && (
-        <InviteCard url={detail.inviteUrl} groupName={detail.groupName} />
-      )}
-
+    <>
       {detail.myStatus === 'invited' && (
         <div className="card stack">
           <h2 style={{ fontSize: 22 }}>{t('edition.in_this_year')}</h2>
@@ -165,11 +136,53 @@ function HomeTab({ detail, reload, goChat }: { detail: EditionDetail; reload: ()
           {card.signedInAs && <div className="muted" style={{ fontSize: 13 }}>{t('draw.signed_in_as', { name: card.signedInAs })}</div>}
         </div>
       )}
+    </>
+  );
+}
 
-      {/* Once the chat is open it leads; otherwise members are the heart of the page. */}
-      {chatEntry}
-      <Members editionId={detail.id} />
+export function InviteCard({ url, groupName }: { url: string; groupName: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  return (
+    <div className="card stack">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 22 }}>🎟️</span>
+        <h2 style={{ fontSize: 22, flex: 1 }}>{t('edition.invite_people')}</h2>
+      </div>
+      <p className="muted" style={{ marginTop: -6, fontSize: 14 }}>{t('edition.invite_hint')}</p>
+      {/* A scannable QR for "join from your phone" — white box so it reads in any theme. */}
+      <div style={{ alignSelf: 'center', background: '#fff', padding: 14, borderRadius: 14 }}>
+        <QRCodeSVG value={url} size={168} level="M" />
+      </div>
+      <p className="muted center" style={{ marginTop: -4, fontSize: 13 }}>{t('edition.invite_qr_hint')}</p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {canShare && (
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { void navigator.share({ title: groupName, url }).catch(() => {}); }}>
+            {t('edition.share')}
+          </button>
+        )}
+        <button
+          className="btn btn-soft"
+          style={{ flex: 1 }}
+          onClick={() => { void navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+        >
+          {copied ? t('edition.invite_copied') : t('edition.invite_copy')}
+        </button>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>{url}</div>
     </div>
+  );
+}
+
+function PeopleSection({ detail }: { detail: EditionDetail }) {
+  return (
+    <>
+      {detail.isAdmin && detail.state === 'open' && detail.inviteUrl && (
+        <InviteCard url={detail.inviteUrl} groupName={detail.groupName} />
+      )}
+      <Members editionId={detail.id} />
+    </>
   );
 }
 
@@ -361,6 +374,7 @@ function ChatTab({ editionId }: { editionId: string }) {
   if (data.locked)
     return (
       <div className="card center stack">
+        <img src="/illustrations/chat-locked.webp" alt="" style={{ width: 200, maxWidth: '70%', margin: '0 auto', display: 'block', borderRadius: 16 }} />
         <h2 style={{ fontSize: 22 }}>{t('chat.locked_title')}</h2>
         <p className="muted">{t('chat.locked_body', { n: data.toCheck ?? 0 })}</p>
       </div>
@@ -404,18 +418,4 @@ function StatusChip({ status }: { status: ParticipantRow['status'] }) {
   };
   const [icon, color] = map[status];
   return <span style={{ fontSize: 13, fontWeight: 700, color }}>{icon} {t('status.' + status)}</span>;
-}
-
-function TabBar({ tab, setTab }: { tab: Tab | null; setTab: (t: Tab) => void }) {
-  const { t } = useI18n();
-  const tabs: Array<[Tab, string]> = [['home', 'nav.home'], ['wishlists', 'nav.wishlists'], ['chat', 'nav.chat']];
-  return (
-    <div style={{ position: 'sticky', bottom: 0, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 4, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 8, marginTop: 12 }}>
-      {tabs.map(([key, label]) => (
-        <button key={key} onClick={() => setTab(key)} className="btn" style={{ minHeight: 44, background: tab === key ? 'var(--soft)' : 'transparent', color: tab === key ? 'var(--primary)' : 'var(--muted)', fontSize: 13 }}>
-          {t(label)}
-        </button>
-      ))}
-    </div>
-  );
 }

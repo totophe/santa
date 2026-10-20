@@ -6,13 +6,11 @@ export function Account({
   user,
   meta,
   onUpdated,
-  onBack,
   onSignedOut,
 }: {
   user: SessionUser;
   meta: PublicMeta | null;
   onUpdated: (u: SessionUser) => void;
-  onBack: () => void;
   onSignedOut: () => void;
 }) {
   const { t, setLang } = useI18n();
@@ -57,7 +55,6 @@ export function Account({
 
   return (
     <div className="stack">
-      <button className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={onBack}>{t('web.back_home')}</button>
       <form className="card stack" onSubmit={save}>
         <h2 style={{ fontSize: 26 }}>{t('account.title')}</h2>
         <div className="field">

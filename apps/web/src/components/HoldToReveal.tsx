@@ -75,9 +75,17 @@ export function HoldToReveal({ onReveal }: Props) {
 
   return (
     <div className="stack" style={{ gap: 14 }}>
-      <div className="reveal-slot" aria-live="polite">
+      <div className="reveal-slot" aria-live="polite" style={{ position: 'relative' }}>
+        {showName && (
+          <img
+            src="/illustrations/sparkle.webp"
+            alt=""
+            aria-hidden
+            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 150, opacity: 0.85, pointerEvents: 'none', zIndex: 0 }}
+          />
+        )}
         {showName ? (
-          <div key={revealId} className="reveal-name">{name}</div>
+          <div key={revealId} className="reveal-name" style={{ position: 'relative', zIndex: 1 }}>{name}</div>
         ) : (
           <div className={phase === 'holding' ? 'reveal-redacted reveal-shake' : 'reveal-redacted'}>{t('draw.hidden')}</div>
         )}
