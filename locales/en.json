@@ -161,6 +161,8 @@
   "group.leave_err_active_draw": "You're in a draw that has already run — ask an admin to remove you.",
   "group.delete": "Delete this group",
   "group.delete_confirm": "Type the group name “{name}” to delete it. This removes all its editions and cannot be undone.",
+  "group.delete_blocked_drawn": "A group with a completed draw can't be deleted.",
+  "group.delete_err_drawn": "This group has a completed draw, so it can't be deleted.",
   "state.open": "Open",
   "state.drawn": "Drawn",
   "state.archived": "Archived",
