@@ -23,6 +23,7 @@ import { MailService } from '../mail/mail.service';
 import { I18nService } from '../i18n/i18n.service';
 import { AccessService } from '../groups/access.service';
 import { AliasService } from '../aliases/alias.service';
+import { PushService } from '../push/push.service';
 import {
   DrawService,
   type HistoryEdition,
@@ -54,6 +55,7 @@ export class DrawExecutionService {
     private readonly mail: MailService,
     private readonly i18n: I18nService,
     private readonly aliases: AliasService,
+    private readonly push: PushService,
   ) {}
 
   /** Run the draw for an edition. Admin only. */
@@ -148,6 +150,18 @@ export class DrawExecutionService {
     await this.emailParticipants(participants, ctx.edition, (to, lang) =>
       this.mail.sendDrawReady(to, `${this.config.appUrl}/editions/${editionId}`, lang, ctx.edition.theme),
     );
+
+    // Push the same nudge (second channel; alias/role-only, no recipient).
+    for (const p of participants) {
+      if (!p.userId) continue;
+      const u = await User.findByPk(p.userId);
+      const lang = this.i18n.normalize(u?.language ?? this.config.defaultLanguage);
+      void this.push.notify(p.userId, {
+        title: this.i18n.t('push.draw_ready_title', { lang }),
+        body: ctx.edition.name,
+        url: `/editions/${editionId}`,
+      });
+    }
 
     const maxLookback = Math.min(3, history.length);
     return {

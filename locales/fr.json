@@ -232,5 +232,17 @@
   "error.not_found": "Cette page n'existe pas, ou vous n'en êtes pas membre.",
   "error.generic": "Une erreur est survenue. Veuillez réessayer.",
   "error.session_ended": "Votre session a expiré. Reconnectez-vous.",
-  "error.offline": "Vous êtes hors ligne. Santa a besoin d'une connexion."
+  "error.offline": "Vous êtes hors ligne. Santa a besoin d'une connexion.",
+
+  "push.draw_ready_title": "Votre tirage est prêt 🎁",
+  "push.chat_title": "Nouveau message",
+  "push.chat_body": "Il y a un nouveau message dans le chat de groupe.",
+  "notifications.title": "Notifications",
+  "notifications.enable": "Activer les notifications",
+  "notifications.disable": "Désactiver les notifications",
+  "notifications.on": "Les notifications sont activées sur cet appareil.",
+  "notifications.blocked": "Les notifications sont bloquées dans les réglages de votre navigateur.",
+  "notifications.unsupported": "Ce navigateur ne gère pas les notifications.",
+  "notifications.ios_hint": "Sur iPhone/iPad, ajoutez d'abord Santa à l'écran d'accueil, puis ouvrez-le depuis là pour activer les notifications.",
+  "notifications.error": "Impossible de modifier les notifications. Réessayez."
 }

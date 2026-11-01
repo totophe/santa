@@ -19,6 +19,10 @@ export interface PublicMeta {
   // Whether a visitor may create a group without an invite (landing page CTA).
   groupCreationOpen: boolean;
   themes: ThemeInfo[];
+  // Web Push: enabled only when the instance set VAPID keys. The public key is
+  // needed client-side to subscribe (it is not a secret).
+  pushEnabled: boolean;
+  pushPublicKey: string | null;
 }
 
 /** Public, unauthenticated configuration the web shell needs to render. */
@@ -37,6 +41,8 @@ export class MetaService {
       languages: [...SUPPORTED_LANGUAGES],
       groupCreationOpen: this.config.groupCreation === 'open',
       themes: this.themes,
+      pushEnabled: this.config.push.enabled,
+      pushPublicKey: this.config.push.enabled ? this.config.push.publicKey : null,
     };
   }
 

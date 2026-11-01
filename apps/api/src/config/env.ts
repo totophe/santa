@@ -28,6 +28,13 @@ export interface AppConfig {
     secure: boolean;
   };
   mailFrom: string;
+  // Web Push (VAPID). Optional, like SMTP: with no keys, push is disabled.
+  push: {
+    publicKey: string;
+    privateKey: string;
+    subject: string;
+    enabled: boolean;
+  };
   groupCreation: GroupCreation;
   groupCreationAllowlist: string[];
   instanceAdmins: string[];
@@ -89,6 +96,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       secure: bool(env.SMTP_SECURE, false),
     },
     mailFrom: env.MAIL_FROM ?? 'Santa <santa@localhost>',
+    push: {
+      publicKey: env.VAPID_PUBLIC_KEY ?? '',
+      privateKey: env.VAPID_PRIVATE_KEY ?? '',
+      // The VAPID spec requires an https: or mailto: subject. Default to the app
+      // URL only when it's https (production); otherwise a mailto placeholder.
+      subject:
+        env.VAPID_SUBJECT ||
+        (env.APP_URL?.startsWith('https:') ? env.APP_URL.replace(/\/$/, '') : 'mailto:admin@localhost'),
+      enabled: !!(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
+    },
     groupCreation,
     groupCreationAllowlist: emails(env.GROUP_CREATION_ALLOWLIST),
     instanceAdmins: emails(env.INSTANCE_ADMINS),

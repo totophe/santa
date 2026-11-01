@@ -11,12 +11,14 @@ import {
   Participant,
   Thread,
   ThreadMessage,
+  User,
 } from '../database/models';
 import type { SessionUser } from '../auth/auth.service';
 import { AccessService } from '../groups/access.service';
 import { AliasService } from '../aliases/alias.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { I18nService } from '../i18n/i18n.service';
+import { PushService } from '../push/push.service';
 import { RateLimitService, MINUTE } from '../safety/rate-limit.service';
 import { CONFIG, type AppConfig } from '../config/env';
 import { Inject } from '@nestjs/common';
@@ -39,6 +41,7 @@ export class MessagesService {
     private readonly crypto: CryptoService,
     private readonly i18n: I18nService,
     private readonly rateLimit: RateLimitService,
+    private readonly push: PushService,
     @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -166,6 +169,20 @@ export class MessagesService {
     if (!ctx.participant?.aliasKey) throw new ForbiddenException('not_a_participant');
     await this.limitMessages(ctx.participant.id);
     await ChatMessage.create({ editionId, aliasKey: ctx.participant.aliasKey, body: clean(body) });
+
+    // Nudge the other participants (content-light: no sender alias, no body —
+    // the chat is alias-only and this keeps notifications non-leaky).
+    const others = await Participant.findAll({ where: { editionId } });
+    for (const p of others) {
+      if (!p.userId || p.userId === user.id) continue;
+      const u = await User.findByPk(p.userId);
+      const lang = this.i18n.normalize(u?.language ?? this.config.defaultLanguage);
+      void this.push.notify(p.userId, {
+        title: this.i18n.t('push.chat_title', { lang }),
+        body: this.i18n.t('push.chat_body', { lang }),
+        url: `/editions/${editionId}`,
+      });
+    }
     return this.getChat(editionId, user);
   }
 
