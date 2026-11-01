@@ -8,6 +8,7 @@ import { BottomNav, type EdTab, type NavKind } from './components/BottomNav';
 import { AuthFlow } from './screens/AuthFlow';
 import { Home } from './screens/Home';
 import { Edition } from './screens/Edition';
+import { Groups } from './screens/Groups';
 import { Group } from './screens/Group';
 import { Admin } from './screens/Admin';
 import { Join } from './screens/Join';
@@ -16,6 +17,7 @@ import { Account } from './screens/Account';
 type View =
   | { kind: 'home' }
   | { kind: 'edition'; editionId: string }
+  | { kind: 'groups' }
   | { kind: 'group'; groupId: string }
   | { kind: 'account' }
   | { kind: 'admin' };
@@ -67,6 +69,12 @@ export default function App() {
     setView({ kind: 'home' });
   }
 
+  function openGroup(groupId: string) {
+    setJoinToken(null);
+    if (window.location.pathname !== '/') window.history.replaceState({}, '', '/');
+    setView({ kind: 'group', groupId });
+  }
+
   const authed = !!(user && user.profileComplete);
   const showChrome = !loading && !joinToken && authed;
 
@@ -91,7 +99,7 @@ export default function App() {
 
       {!loading && joinToken && (
         <>
-          <Join token={joinToken} authed={authed} onNeedsAuth={() => {}} onJoined={openEdition} />
+          <Join token={joinToken} authed={authed} onNeedsAuth={() => {}} onJoined={openGroup} onHome={goHome} />
           {!authed && (
             <div style={{ marginTop: 16 }}>
               <AuthFlow meta={meta} initialUser={user} onAuthed={(u) => { setUser(u); setLang(u.language); }} />
@@ -105,7 +113,11 @@ export default function App() {
       )}
 
       {showChrome && view.kind === 'home' && (
-        <Home meta={meta} onOpenEdition={openEdition} onOpenGroup={(groupId) => setView({ kind: 'group', groupId })} />
+        <Home meta={meta} onOpenEdition={openEdition} onOpenGroups={() => setView({ kind: 'groups' })} />
+      )}
+
+      {showChrome && view.kind === 'groups' && (
+        <Groups meta={meta} onOpenGroup={openGroup} onOpenEdition={openEdition} />
       )}
 
       {showChrome && view.kind === 'account' && user && (
@@ -120,12 +132,12 @@ export default function App() {
           meta={meta}
           tab={edTab}
           onTab={setEdTab}
-          onOpenGroup={(groupId) => setView({ kind: 'group', groupId })}
+          onOpenGroup={openGroup}
         />
       )}
 
       {showChrome && view.kind === 'group' && (
-        <Group groupId={view.groupId} meta={meta} onOpenEdition={openEdition} onLeft={goHome} />
+        <Group groupId={view.groupId} meta={meta} onOpenEdition={openEdition} onLeft={() => setView({ kind: 'groups' })} />
       )}
 
       {showChrome && (
@@ -134,6 +146,7 @@ export default function App() {
           user={user}
           editionTab={edTab ?? 'people'}
           onHome={goHome}
+          onGroups={() => setView({ kind: 'groups' })}
           onAccount={() => setView({ kind: 'account' })}
           onAdmin={() => setView({ kind: 'admin' })}
           onEditionTab={setEdTab}

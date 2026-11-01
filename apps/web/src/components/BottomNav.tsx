@@ -5,7 +5,7 @@ import type { SessionUser } from '../api';
 export type EdTab = 'people' | 'lists' | 'chat';
 
 /** Where the app currently is — drives which items the bottom bar shows. */
-export type NavKind = 'home' | 'group' | 'account' | 'admin' | 'edition';
+export type NavKind = 'home' | 'groups' | 'group' | 'account' | 'admin' | 'edition';
 
 type Item = { key: string; icon: string; label: string; active: boolean; onClick: () => void };
 
@@ -19,6 +19,7 @@ export function BottomNav({
   user,
   editionTab,
   onHome,
+  onGroups,
   onAccount,
   onAdmin,
   onEditionTab,
@@ -27,6 +28,7 @@ export function BottomNav({
   user: SessionUser | null;
   editionTab: EdTab;
   onHome: () => void;
+  onGroups: () => void;
   onAccount: () => void;
   onAdmin: () => void;
   onEditionTab: (t: EdTab) => void;
@@ -43,7 +45,8 @@ export function BottomNav({
     ];
   } else {
     items = [
-      { key: 'home', icon: '🏠', label: t('nav.home'), active: kind === 'home' || kind === 'group', onClick: onHome },
+      { key: 'home', icon: '🏠', label: t('nav.home'), active: kind === 'home', onClick: onHome },
+      { key: 'groups', icon: '👥', label: t('nav.groups'), active: kind === 'groups' || kind === 'group', onClick: onGroups },
       { key: 'account', icon: '👤', label: t('action.account'), active: kind === 'account', onClick: onAccount },
     ];
     if (user?.isInstanceAdmin) {

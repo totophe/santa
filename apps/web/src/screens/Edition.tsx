@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
 import { api, type EditionDetail, type MyWishlist, type ParticipantRow, type PublicMeta } from '../api';
 import type { EdTab } from '../components/BottomNav';
 import { HoldToReveal } from '../components/HoldToReveal';
@@ -83,7 +82,7 @@ export function Edition({
       ) : (
         <div className="stack">
           <ActionBlock detail={detail} reload={load} />
-          {active === 'people' && <PeopleSection detail={detail} />}
+          {active === 'people' && <PeopleSection detail={detail} onOpenGroup={onOpenGroup} />}
           {active === 'lists' && <WishlistsTab editionId={editionId} />}
           {active === 'chat' && <ChatTab editionId={editionId} />}
         </div>
@@ -140,46 +139,19 @@ function ActionBlock({ detail, reload }: { detail: EditionDetail; reload: () => 
   );
 }
 
-export function InviteCard({ url, groupName }: { url: string; groupName: string }) {
+function PeopleSection({ detail, onOpenGroup }: { detail: EditionDetail; onOpenGroup: (groupId: string) => void }) {
   const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-  return (
-    <div className="card stack">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 22 }}>🎟️</span>
-        <h2 style={{ fontSize: 22, flex: 1 }}>{t('edition.invite_people')}</h2>
-      </div>
-      <p className="muted" style={{ marginTop: -6, fontSize: 14 }}>{t('edition.invite_hint')}</p>
-      {/* A scannable QR for "join from your phone" — white box so it reads in any theme. */}
-      <div style={{ alignSelf: 'center', background: '#fff', padding: 14, borderRadius: 14 }}>
-        <QRCodeSVG value={url} size={168} level="M" />
-      </div>
-      <p className="muted center" style={{ marginTop: -4, fontSize: 13 }}>{t('edition.invite_qr_hint')}</p>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {canShare && (
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { void navigator.share({ title: groupName, url }).catch(() => {}); }}>
-            {t('edition.share')}
-          </button>
-        )}
-        <button
-          className="btn btn-soft"
-          style={{ flex: 1 }}
-          onClick={() => { void navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-        >
-          {copied ? t('edition.invite_copied') : t('edition.invite_copy')}
-        </button>
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>{url}</div>
-    </div>
-  );
-}
-
-function PeopleSection({ detail }: { detail: EditionDetail }) {
   return (
     <>
-      {detail.isAdmin && detail.state === 'open' && detail.inviteUrl && (
-        <InviteCard url={detail.inviteUrl} groupName={detail.groupName} />
+      {detail.isAdmin && detail.state === 'open' && (
+        <button className="card" onClick={() => onOpenGroup(detail.groupId)} style={{ textAlign: 'left', border: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <span style={{ fontSize: 22 }}>🎟️</span>
+          <span style={{ flex: 1 }}>
+            <span style={{ fontWeight: 700 }}>{t('edition.invite_people')}</span>
+            <span className="muted" style={{ display: 'block', fontSize: 13 }}>{t('edition.invite_via_group')}</span>
+          </span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.4" strokeLinecap="round"><path d="m9 6 6 6-6 6" /></svg>
+        </button>
       )}
       <Members editionId={detail.id} />
     </>

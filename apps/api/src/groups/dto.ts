@@ -58,3 +58,15 @@ export class CreateGroupDto {
   @Type(() => EditionInputDto)
   edition!: EditionInputDto;
 }
+
+export class GroupSettingsDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 60)
+  @Matches(NO_URL, { message: 'group name must not contain a URL' })
+  name?: string;
+
+  @IsOptional()
+  @IsIn(['private', 'semi_public'])
+  visibility?: string;
+}
