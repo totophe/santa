@@ -11,15 +11,17 @@ import { SEQUELIZE } from '../database/database.module';
 import { CONFIG, type AppConfig } from '../config/env';
 import {
   Edition,
+  EditionExclusion,
   Group,
   Membership,
   Participant,
   User,
 } from '../database/models';
 import type { GroupVisibility } from '../database/models/group.model';
+import { isFeasible, forbiddenSet } from '../draw/draw.service';
 import { randomUrlToken } from '../auth/tokens';
 import type { SessionUser } from '../auth/auth.service';
-import type { CreateGroupDto, EditionInputDto, GroupSettingsDto } from './dto';
+import type { CreateGroupDto, EditionInputDto, ExclusionPairDto, GroupSettingsDto } from './dto';
 import { AccessService } from './access.service';
 import { RateLimitService, DAY } from '../safety/rate-limit.service';
 
@@ -109,10 +111,11 @@ export class GroupsService {
   }
 
   /**
-   * Create an edition (open) and enrol the group's active members as participants:
-   * the creator is confirmed, everyone else is invited (they still RSVP). For a
-   * brand-new group the creator is the only member, so this is just them.
-   * (PR2 lets the admin deselect members before creating.)
+   * Create an edition (open) and enrol the chosen active members as participants:
+   * the creator is confirmed, everyone else is invited (they still RSVP). When
+   * `participantUserIds` is given, only those members are enrolled (the admin
+   * deselected the rest); otherwise everyone joins. Exclusion pairs (couples who
+   * must not draw each other) are stored against the created participants.
    */
   private async buildEdition(
     tx: Transaction,
@@ -134,13 +137,21 @@ export class GroupsService {
       },
       { transaction: tx },
     );
+
     const members = await Membership.findAll({
       where: { groupId, status: 'active' },
       transaction: tx,
     });
+    const selected = input.participantUserIds
+      ? new Set(input.participantUserIds)
+      : null; // null = everyone
+
+    const participantByUser = new Map<string, string>();
     for (const m of members) {
       const isCreator = m.userId === user.id;
-      await Participant.create(
+      // Honour the selection, but the creator is always in if they didn't deselect.
+      if (selected && !selected.has(m.userId)) continue;
+      const p = await Participant.create(
         {
           editionId: edition.id,
           userId: m.userId,
@@ -149,8 +160,58 @@ export class GroupsService {
         },
         { transaction: tx },
       );
+      participantByUser.set(m.userId, p.id);
     }
+
+    await this.storeExclusions(tx, edition.id, input.exclusions ?? [], participantByUser);
     return edition;
+  }
+
+  /** Persist exclusion pairs (by member user id) as canonical participant pairs. */
+  private async storeExclusions(
+    tx: Transaction,
+    editionId: string,
+    pairs: ExclusionPairDto[],
+    participantByUser: Map<string, string>,
+  ): Promise<void> {
+    const seen = new Set<string>();
+    for (const { a, b } of pairs) {
+      const pa = participantByUser.get(a);
+      const pb = participantByUser.get(b);
+      if (!pa || !pb || pa === pb) continue; // both must be participants
+      const [lo, hi] = pa < pb ? [pa, pb] : [pb, pa]; // canonical a < b
+      const key = `${lo}|${hi}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      await EditionExclusion.create(
+        { editionId, participantAId: lo, participantBId: hi },
+        { transaction: tx },
+      );
+    }
+  }
+
+  /**
+   * Would a draw be possible for this set of members under these exclusions?
+   * Powers the creation wizard's live check (the draw itself re-checks the
+   * confirmed set at run time). Admins only.
+   */
+  async checkFeasibility(
+    groupId: string,
+    user: SessionUser,
+    participantUserIds: string[],
+    exclusions: ExclusionPairDto[],
+  ): Promise<{ feasible: boolean; reason?: 'too_few' | 'restrictions' }> {
+    await this.access.requireAdmin(groupId, user.id);
+    const members = await Membership.findAll({ where: { groupId, status: 'active' } });
+    const memberIds = new Set(members.map((m) => m.userId));
+    const ids = participantUserIds.filter((id) => memberIds.has(id));
+    if (ids.length < 3) return { feasible: false, reason: 'too_few' };
+    const idSet = new Set(ids);
+    const pairs = exclusions
+      .filter((e) => idSet.has(e.a) && idSet.has(e.b))
+      .map((e) => [e.a, e.b] as [string, string]);
+    if (!isFeasible(ids, forbiddenSet(pairs))) return { feasible: false, reason: 'restrictions' };
+    return { feasible: true };
   }
 
   /** Add a (newly joined/approved) member to the group's current open edition as invited. */

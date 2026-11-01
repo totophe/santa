@@ -105,6 +105,17 @@ export interface JoinRequest {
   email: string | null;
   requestedAt: string;
 }
+/** An exclusion pair by member user id (couples who must not draw each other). */
+export interface ExclusionPair {
+  a: string;
+  b: string;
+}
+export interface EditionExclusionRow {
+  aParticipantId: string;
+  bParticipantId: string;
+  aName: string;
+  bName: string;
+}
 export interface ParticipantRow {
   id: string;
   firstName: string;
@@ -190,6 +201,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  drawFeasibility: (groupId: string, body: { participantUserIds: string[]; exclusions: ExclusionPair[] }) =>
+    request<{ feasible: boolean; reason?: 'too_few' | 'restrictions' }>(`/api/groups/${groupId}/draw-feasibility`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  editionExclusions: (id: string) =>
+    request<{ exclusions: EditionExclusionRow[] }>(`/api/editions/${id}/exclusions`),
   leaveGroup: (groupId: string) =>
     request<{ ok: true }>(`/api/groups/${groupId}/leave`, { method: 'POST' }),
   deleteGroup: (groupId: string, confirmName: string) =>

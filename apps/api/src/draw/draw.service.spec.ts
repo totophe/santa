@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { DrawService, HistoryEdition } from './draw.service';
+import { DrawService, HistoryEdition, RestrictionsImpossibleError, forbiddenSet, isFeasible } from './draw.service';
 
 const service = new DrawService();
 
@@ -117,5 +117,53 @@ describe('DrawService', () => {
     const ids = ['a', 'b', 'c', 'd', 'e'];
     const { lookbackAchieved } = service.draw(ids, []);
     expect(lookbackAchieved).toBe(0);
+  });
+
+  describe('exclusion restrictions', () => {
+    it('never pairs a forbidden couple, in either direction', () => {
+      fc.assert(
+        fc.property(participants, (ids) => {
+          // Exclude up to two disjoint couples.
+          const pairs: Array<[string, string]> = [[ids[0], ids[1]]];
+          if (ids.length >= 4) pairs.push([ids[2], ids[3]]);
+          const banned = forbiddenSet(pairs);
+          // n=3 can't honour a couple exclusion — only assert when a draw is possible.
+          if (!isFeasible(ids, banned)) return;
+          const { assignments } = service.draw(ids, [], banned);
+          for (const a of assignments) {
+            expect(banned.has(`${a.giverId}|${a.recipientId}`)).toBe(false);
+            expect(a.giverId).not.toBe(a.recipientId);
+          }
+          // Still a complete assignment: everyone gives and receives once.
+          expect(new Set(assignments.map((a) => a.giverId))).toEqual(new Set(ids));
+          expect(new Set(assignments.map((a) => a.recipientId))).toEqual(new Set(ids));
+        }),
+        { numRuns: 200 },
+      );
+    });
+
+    it('honours a couple exclusion for a small-but-feasible group (n=4)', () => {
+      const ids = ['a', 'b', 'c', 'd'];
+      const banned = forbiddenSet([['a', 'b']]);
+      expect(isFeasible(ids, banned)).toBe(true);
+      for (let i = 0; i < 50; i++) {
+        const { assignments } = service.draw(ids, [], banned);
+        const map = new Map(assignments.map((x) => [x.giverId, x.recipientId]));
+        expect(map.get('a')).not.toBe('b');
+        expect(map.get('b')).not.toBe('a');
+      }
+    });
+
+    it('reports infeasible restrictions and throws', () => {
+      // 3 people, every pair excluded → no valid draw.
+      const trio = ['a', 'b', 'c'];
+      const all = forbiddenSet([['a', 'b'], ['b', 'c'], ['a', 'c']]);
+      expect(isFeasible(trio, all)).toBe(false);
+      expect(() => service.draw(trio, [], all)).toThrow(RestrictionsImpossibleError);
+      // 3 people can't honour even one couple exclusion (both 3-cycles use it).
+      expect(isFeasible(trio, forbiddenSet([['a', 'b']]))).toBe(false);
+      // With 4 people, one couple exclusion is feasible.
+      expect(isFeasible(['a', 'b', 'c', 'd'], forbiddenSet([['a', 'b']]))).toBe(true);
+    });
   });
 });

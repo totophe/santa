@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, type EditionDetail, type MyWishlist, type ParticipantRow, type PublicMeta } from '../api';
+import { api, ApiError, type EditionDetail, type EditionExclusionRow, type MyWishlist, type ParticipantRow, type PublicMeta } from '../api';
 import type { EdTab } from '../components/BottomNav';
 import { HoldToReveal } from '../components/HoldToReveal';
 import { applyTheme } from '../theme';
@@ -189,9 +189,17 @@ function AdminPanel({ detail, reload }: { detail: EditionDetail; reload: () => P
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const [err, setErr] = useState<string | null>(null);
+
   async function act(fn: () => Promise<unknown>, done?: string) {
     setBusy(true);
-    try { await fn(); if (done) setMsg(done); await reload(); } finally { setBusy(false); }
+    setErr(null);
+    try { await fn(); if (done) setMsg(done); await reload(); }
+    catch (e) {
+      const code = e instanceof ApiError ? e.code : '';
+      setErr(code === 'restrictions_impossible' ? t('wizard.infeasible_restrictions') : t('create.error'));
+    }
+    finally { setBusy(false); }
   }
 
   return (
@@ -214,8 +222,26 @@ function AdminPanel({ detail, reload }: { detail: EditionDetail; reload: () => P
           <button className="btn btn-soft" disabled={busy} onClick={() => act(() => api.openChat(detail.id), t('account.saved'))}>{t('edition.open_chat_now')}</button>
         )}
         {msg && <p className="muted" style={{ fontSize: 14 }}>{msg}</p>}
+        {err && <p className="error">{err}</p>}
       </div>
+      {detail.state === 'open' && <RestrictionsCard editionId={detail.id} />}
       <EditionSettings edition={detail} reload={reload} />
+    </div>
+  );
+}
+
+/** Shows the edition's exclusion pairs so an admin can confirm them. */
+function RestrictionsCard({ editionId }: { editionId: string }) {
+  const { t } = useI18n();
+  const [rows, setRows] = useState<EditionExclusionRow[] | null>(null);
+  useEffect(() => { void api.editionExclusions(editionId).then((r) => setRows(r.exclusions)).catch(() => setRows([])); }, [editionId]);
+  if (!rows || rows.length === 0) return null;
+  return (
+    <div className="card stack">
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('edition.restrictions_title')}</div>
+      {rows.map((r) => (
+        <div key={`${r.aParticipantId}-${r.bParticipantId}`} style={{ fontSize: 14 }}>{r.aName} ⟷ {r.bName}</div>
+      ))}
     </div>
   );
 }

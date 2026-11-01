@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Post, Put, UseGuards } from '@n
 import { CurrentUser, SessionGuard } from '../auth/session.guard';
 import type { SessionUser } from '../auth/auth.service';
 import { GroupsService } from './groups.service';
-import { CreateGroupDto, EditionInputDto, GroupSettingsDto } from './dto';
+import { CreateGroupDto, EditionInputDto, FeasibilityDto, GroupSettingsDto } from './dto';
 
 @Controller('groups')
 @UseGuards(SessionGuard)
@@ -37,6 +37,18 @@ export class GroupsController {
   @Get(':id')
   async detail(@CurrentUser() user: SessionUser, @Param('id') id: string) {
     return this.groups.getGroupDetail(id, user.id);
+  }
+
+  // Live check for the edition wizard: can these members be drawn under these
+  // exclusions? (The draw re-checks the confirmed set authoritatively.)
+  @Post(':groupId/draw-feasibility')
+  @HttpCode(200)
+  async feasibility(
+    @CurrentUser() user: SessionUser,
+    @Param('groupId') groupId: string,
+    @Body() dto: FeasibilityDto,
+  ) {
+    return this.groups.checkFeasibility(groupId, user, dto.participantUserIds, dto.exclusions ?? []);
   }
 
   // Start the next edition in an existing group (admins only).

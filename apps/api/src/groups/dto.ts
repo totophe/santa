@@ -1,10 +1,13 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsIn,
   IsISO8601,
   IsOptional,
   IsNumberString,
   IsString,
+  IsUUID,
   Length,
   Matches,
   MaxLength,
@@ -13,6 +16,15 @@ import {
 
 // Text that ends up in emails rejects URLs.
 const NO_URL = /^(?!.*https?:\/\/)(?!.*www\.).*$/i;
+
+/** An unordered "these two must not draw each other" pair, by member user id. */
+export class ExclusionPairDto {
+  @IsUUID()
+  a!: string;
+
+  @IsUUID()
+  b!: string;
+}
 
 export class EditionInputDto {
   @IsString()
@@ -41,6 +53,35 @@ export class EditionInputDto {
   @IsString()
   @Length(1, 8)
   budgetCurrency?: string;
+
+  // Which active members take part. Omitted → everyone. (The creator is always in.)
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID('4', { each: true })
+  participantUserIds?: string[];
+
+  // Couples etc. who must not draw each other, by member user id.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => ExclusionPairDto)
+  exclusions?: ExclusionPairDto[];
+}
+
+export class FeasibilityDto {
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID('4', { each: true })
+  participantUserIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => ExclusionPairDto)
+  exclusions?: ExclusionPairDto[];
 }
 
 export class CreateGroupDto {

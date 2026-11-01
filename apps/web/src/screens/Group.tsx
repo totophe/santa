@@ -54,7 +54,7 @@ export function Group({
         })}
       </div>
 
-      {isAdmin && !hasLive && <NewEditionForm groupId={groupId} meta={meta} onCreated={onOpenEdition} />}
+      {isAdmin && !hasLive && <NewEditionForm groupId={groupId} meta={meta} members={group.members} onCreated={onOpenEdition} />}
 
       <div className="card stack">
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('group.members')}</div>
@@ -76,7 +76,9 @@ function editionNameFor(meta: PublicMeta | null, themeName: string, year: number
   return tmpl.replace('{year}', String(year));
 }
 
-function NewEditionForm({ groupId, meta, onCreated }: { groupId: string; meta: PublicMeta | null; onCreated: (editionId: string) => void }) {
+type Member = { userId: string; firstName: string | null; isYou: boolean };
+
+function NewEditionForm({ groupId, meta, members, onCreated }: { groupId: string; meta: PublicMeta | null; members: Member[]; onCreated: (editionId: string) => void }) {
   const { t } = useI18n();
   const year = new Date().getFullYear();
   const firstTheme = meta?.themes[0]?.name ?? 'generic';
@@ -88,10 +90,36 @@ function NewEditionForm({ groupId, meta, onCreated }: { groupId: string; meta: P
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function pickTheme(tn: string) {
-    setTheme(tn);
-    setName(editionNameFor(meta, tn, year));
+  // Wizard: who takes part, and who must not draw each other.
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(members.map((m) => m.userId)));
+  const [exclusions, setExclusions] = useState<Array<[string, string]>>([]);
+  const [feasible, setFeasible] = useState<{ feasible: boolean; reason?: string } | null>(null);
+
+  const nameOf = (uid: string) => {
+    const m = members.find((x) => x.userId === uid);
+    return (m?.firstName ?? '…') + (m?.isYou ? ` (${t('people.you')})` : '');
+  };
+  const selectedIds = members.map((m) => m.userId).filter((id) => selected.has(id));
+
+  function toggle(uid: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid); else next.add(uid);
+      return next;
+    });
+    // Drop exclusions that reference a now-deselected member.
+    setExclusions((prev) => prev.filter(([a, b]) => a !== uid && b !== uid));
   }
+
+  // Live feasibility whenever the set or restrictions change.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    const body = { participantUserIds: selectedIds, exclusions: exclusions.map(([a, b]) => ({ a, b })) };
+    void api.drawFeasibility(groupId, body).then((r) => { if (!cancelled) setFeasible(r); }).catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selected, exclusions]);
 
   if (!open) {
     return (
@@ -101,6 +129,11 @@ function NewEditionForm({ groupId, meta, onCreated }: { groupId: string; meta: P
         <button className="btn btn-primary" onClick={() => setOpen(true)}>{t('group.new_edition')}</button>
       </div>
     );
+  }
+
+  function pickTheme(tn: string) {
+    setTheme(tn);
+    setName(editionNameFor(meta, tn, year));
   }
 
   async function submit(e: React.FormEvent) {
@@ -113,6 +146,8 @@ function NewEditionForm({ groupId, meta, onCreated }: { groupId: string; meta: P
         theme,
         exchangeDate,
         ...(budget ? { budgetAmount: budget, budgetCurrency: 'EUR' } : {}),
+        participantUserIds: selectedIds,
+        exclusions: exclusions.map(([a, b]) => ({ a, b })),
       });
       onCreated(res.edition.id);
     } catch {
@@ -147,12 +182,83 @@ function NewEditionForm({ groupId, meta, onCreated }: { groupId: string; meta: P
         <label>{t('create.budget')}</label>
         <input type="text" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="25" />
       </div>
+
+      {/* Who takes part */}
+      <div className="field">
+        <label>{t('wizard.who_takes_part')}</label>
+        <div className="stack" style={{ gap: 6 }}>
+          {members.map((m) => (
+            <label key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15 }}>
+              <input type="checkbox" checked={selected.has(m.userId)} onChange={() => toggle(m.userId)} />
+              <span>{nameOf(m.userId)}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Exclusion pairs */}
+      <div className="field">
+        <label>{t('wizard.restrictions')}</label>
+        <p className="muted" style={{ marginTop: -2, marginBottom: 6, fontSize: 13 }}>{t('wizard.restrictions_hint')}</p>
+        {exclusions.map(([a, b], i) => (
+          <div key={`${a}-${b}`} style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--line)', paddingBottom: 6, marginBottom: 6 }}>
+            <span style={{ flex: 1, fontSize: 14 }}>{nameOf(a)} ⟷ {nameOf(b)}</span>
+            <button type="button" className="btn btn-ghost" style={{ width: 'auto', minHeight: 32, padding: '0 8px' }}
+              onClick={() => setExclusions((prev) => prev.filter((_, j) => j !== i))}>✕</button>
+          </div>
+        ))}
+        <ExclusionPicker
+          members={members.filter((m) => selected.has(m.userId))}
+          existing={exclusions}
+          onAdd={(a, b) => setExclusions((prev) => [...prev, [a, b]])}
+        />
+      </div>
+
+      {feasible && !feasible.feasible && (
+        <p className="error">
+          {feasible.reason === 'too_few' ? t('wizard.infeasible_too_few') : t('wizard.infeasible_restrictions')}
+        </p>
+      )}
+
       {error && <p className="error">{error}</p>}
       <button className="btn btn-primary" disabled={busy} type="submit">{busy ? t('create.creating') : t('group.new_edition')}</button>
       <button className="btn btn-ghost" type="button" onClick={() => setOpen(false)}>{t('action.cancel')}</button>
     </form>
   );
 }
+
+/** Two dropdowns + Add, to append a symmetric exclusion pair from selected members. */
+function ExclusionPicker({ members, existing, onAdd }: { members: Member[]; existing: Array<[string, string]>; onAdd: (a: string, b: string) => void }) {
+  const { t } = useI18n();
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  if (members.length < 2) return null;
+
+  const has = (x: string, y: string) =>
+    existing.some(([p, q]) => (p === x && q === y) || (p === y && q === x));
+  const canAdd = a && b && a !== b && !has(a, b);
+
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <select value={a} onChange={(e) => setA(e.target.value)} style={selectStyle}>
+        <option value="">{t('wizard.pick_person')}</option>
+        {members.map((m) => <option key={m.userId} value={m.userId}>{m.firstName ?? '…'}</option>)}
+      </select>
+      <span className="muted">⟷</span>
+      <select value={b} onChange={(e) => setB(e.target.value)} style={selectStyle}>
+        <option value="">{t('wizard.pick_person')}</option>
+        {members.map((m) => <option key={m.userId} value={m.userId}>{m.firstName ?? '…'}</option>)}
+      </select>
+      <button type="button" className="btn btn-soft" style={{ width: 'auto', minHeight: 40, padding: '0 12px' }}
+        disabled={!canAdd} onClick={() => { onAdd(a, b); setA(''); setB(''); }}>{t('wizard.add_restriction')}</button>
+    </div>
+  );
+}
+
+const selectStyle: React.CSSProperties = {
+  flex: 1, minWidth: 0, minHeight: 40, borderRadius: 10, border: '1px solid var(--line)',
+  padding: '0 10px', fontSize: 14, background: 'var(--bg)', color: 'var(--text)',
+};
 
 function JoinRequests({ group, reload }: { group: GroupDetail; reload: () => Promise<void> }) {
   const { t } = useI18n();
