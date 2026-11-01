@@ -1,3 +1,6 @@
+// Load apps/api/.env for local dev. A no-op in production (no .env in the image,
+// and dotenv never overrides real environment variables), so it's safe to always import.
+import 'dotenv/config';
 import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

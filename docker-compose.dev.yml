@@ -1,0 +1,37 @@
+# Local development backing services. The app itself runs on the host
+# (`npm run dev`), talking to these over localhost — see README "Develop locally".
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Postgres is required. Mailpit is optional — it catches the sign-in / magic-link
+# emails and shows them at http://localhost:8025. Without it, the API runs in
+# log-only mail mode and prints the code to its console (the zero-config default).
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: santa
+      POSTGRES_PASSWORD: santa
+      POSTGRES_DB: santa
+    ports:
+      - "5432:5432"
+    volumes:
+      - santa-dev-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U santa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Optional: a local SMTP sink with a web UI. To use it, set SMTP_HOST=localhost
+  # and SMTP_PORT=1025 in apps/api/.env, then open http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # web UI
+
+volumes:
+  santa-dev-db:

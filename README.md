@@ -26,21 +26,33 @@ Secret Santa is one theme; the product is generic.
 
 Monorepo layout: `apps/api`, `apps/web`, `locales/`, `themes/`, `docs/`.
 
-## Run it locally
+## Develop locally
 
-Prerequisites: Node 20+ and a PostgreSQL 15+ server.
+Prerequisites: Node 20+ and Docker (for the local Postgres). No Docker? See the note below.
 
 ```bash
 npm install
-cp .env.example .env            # then edit values (see below)
-# generate an encryption key:
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
-# terminal 1 — API (defaults to :3000)
-npm run dev --workspace apps/api
-# terminal 2 — web dev server with API proxy (:5173)
-npm run dev --workspace apps/web
+# 1. start Postgres (and an optional Mailpit mail catcher) in the background
+docker compose -f docker-compose.dev.yml up -d
+
+# 2. configure the API — copy the template and set an encryption key
+cp apps/api/.env.example apps/api/.env
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # paste into ENCRYPTION_KEY=
+
+# 3. run both dev servers (migrations run automatically on API start)
+npm run dev --workspace apps/api   # terminal 1 — API on :3000
+npm run dev --workspace apps/web   # terminal 2 — web (Vite proxy) on :5173
 ```
+
+Open **http://localhost:5173**. The app loads `apps/api/.env` automatically. To sign in,
+enter any email — with no SMTP configured the **sign-in code is printed to the API
+console** (or run Mailpit and read it at http://localhost:8025; see the `.env.example`).
+
+Reset the database any time with `docker compose -f docker-compose.dev.yml down -v`.
+
+> **No Docker?** Point `DATABASE_URL` at any PostgreSQL 15+ you have (a `santa`
+> database owned by a `santa` role), and skip step 1.
 
 In production the API serves the built web app on a single port:
 
@@ -49,12 +61,16 @@ npm run build
 node apps/api/dist/main.js
 ```
 
-## With Docker
+## Self-hosting with Docker
+
+Run the published image alongside Postgres with the production compose file:
 
 ```bash
-cp .env.example .env            # set ENCRYPTION_KEY, SMTP_*, MAIL_FROM, APP_URL
-docker compose up --build
+cp .env.example deploy/.env      # set ENCRYPTION_KEY, SMTP_*, MAIL_FROM, APP_URL
+docker compose -f deploy/compose.prod.yml --env-file deploy/.env up -d
 ```
+
+See [`deploy/ARCHITECTURE.md`](./deploy/ARCHITECTURE.md) for the full deployment guide.
 
 ## Configuration
 
