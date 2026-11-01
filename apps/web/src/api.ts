@@ -84,6 +84,7 @@ export interface GroupDetail {
   name: string;
   defaultLanguage: string;
   role: string;
+  hasDrawnEdition: boolean;
   members: Array<{ userId: string; firstName: string | null; lastName: string | null; role: string; isYou: boolean }>;
   editions: Array<{ id: string; name: string; theme: string; state: string; exchangeDate: string | null }>;
 }

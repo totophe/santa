@@ -247,6 +247,8 @@ export class GroupsService {
       defaultLanguage: group.defaultLanguage,
       role: membership.role,
       members: memberDtos,
+      // A group with any drawn edition can't be deleted (irreversible history).
+      hasDrawnEdition: editions.some((e) => e.drawnAt != null),
       editions: editions.map((e) => ({
         id: e.id,
         name: e.name,

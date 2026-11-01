@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, type InstanceOverview, type InstanceUser } from '../api';
+import { api, ApiError, type InstanceOverview, type InstanceUser } from '../api';
 import { useI18n } from '../i18n';
 
 type AdminTab = 'groups' | 'editions' | 'users';
@@ -24,8 +24,13 @@ export function Admin() {
 
   async function deleteGroup(id: string, name: string) {
     if (!window.confirm(t('admin.delete_confirm', { name }))) return;
-    await api.instanceDeleteGroup(id);
-    await loadOverview();
+    try {
+      await api.instanceDeleteGroup(id);
+      await loadOverview();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : '';
+      window.alert(t(code === 'group_has_drawn_edition' ? 'group.delete_err_drawn' : 'error.generic'));
+    }
   }
 
   if (!overview) return <p className="muted center">{t('web.loading')}</p>;
@@ -60,7 +65,9 @@ export function Admin() {
             <span className="muted" style={{ fontSize: 12 }}>{t('admin.member_edition_counts', { members: g.memberCount, editions: g.editionCount })}</span>
           </div>
           <div className="muted" style={{ fontSize: 13 }}>{g.creatorEmail ?? '—'} · {fmtDate(g.createdAt)}</div>
-          <button className="btn btn-ghost" style={{ color: 'var(--danger)', minHeight: 38 }} onClick={() => deleteGroup(g.id, g.name)}>{t('group.delete')}</button>
+          {g.editions.some((e) => e.drawn)
+            ? <p className="muted" style={{ fontSize: 12 }}>{t('group.delete_blocked_drawn')}</p>
+            : <button className="btn btn-ghost" style={{ color: 'var(--danger)', minHeight: 38 }} onClick={() => deleteGroup(g.id, g.name)}>{t('group.delete')}</button>}
         </div>
       ))}
 

@@ -161,6 +161,8 @@
   "group.leave_err_active_draw": "Vous êtes dans un tirage déjà effectué — demandez à un admin de vous retirer.",
   "group.delete": "Supprimer ce groupe",
   "group.delete_confirm": "Saisissez le nom du groupe « {name} » pour le supprimer. Cela supprime toutes ses éditions et c'est irréversible.",
+  "group.delete_blocked_drawn": "Un groupe avec un tirage effectué ne peut pas être supprimé.",
+  "group.delete_err_drawn": "Ce groupe a un tirage effectué, il ne peut pas être supprimé.",
   "state.open": "Ouverte",
   "state.drawn": "Tirée",
   "state.archived": "Archivée",

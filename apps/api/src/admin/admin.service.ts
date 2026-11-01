@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Sequelize } from '@sequelize/core';
+import { Op, Sequelize } from '@sequelize/core';
 import { SEQUELIZE } from '../database/database.module';
 import { CONFIG, type AppConfig } from '../config/env';
 import {
@@ -248,6 +248,9 @@ export class AdminService {
     const group = await Group.findByPk(groupId);
     if (!group) throw new NotFoundException();
     if (confirmName.trim() !== group.name) throw new BadRequestException('name_mismatch');
+    // A completed draw is irreversible history — never let a delete erase it.
+    const drawn = await Edition.count({ where: { groupId, drawnAt: { [Op.ne]: null } } });
+    if (drawn > 0) throw new ConflictException('group_has_drawn_edition');
     await group.destroy(); // cascades editions → participants → content
     return { ok: true as const };
   }

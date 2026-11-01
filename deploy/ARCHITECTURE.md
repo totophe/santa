@@ -41,11 +41,11 @@
 
 ## What we need from Talos
 
-- The VM's **WireGuard IP** → set `app_bind` in `vars.yml` to bind the app to
+- The VM's **WireGuard IP** → set `APP_BIND` in the `.env` to bind the app to
   that interface (so it isn't exposed on the LAN), or a firewall rule limiting
   :3000 to the WG peer.
-- SSH as `ansible@<vm>` with passwordless sudo, and outbound internet on the VM
-  (to pull the image from GHCR).
+- SSH access to the VM with sudo, and outbound internet on the VM (to pull the
+  image from GHCR).
 
 ## Image & release flow
 
@@ -53,18 +53,26 @@
   tests, build.
 - `.github/workflows/release.yml` builds and pushes `ghcr.io/totophe/santa` on a
   `vX.Y.Z` tag (`:X.Y.Z`, `:X.Y`, `:latest`) and `:main` on main.
-- The VM deploy (`deploy/ansible/deploy.yml`) pulls that image — it does **not**
-  build from source — via `deploy/compose.prod.yml`.
+- The VM runs that image — it does **not** build from source — via
+  `deploy/compose.prod.yml`. (The maintainer's own deploy automation lives in a
+  private IaC repo; the compose file plus a `.env` is all you need to self-host.)
 
-## Deploy / upgrade
+## Deploy / upgrade (docker compose)
+
+On the VM, with `compose.prod.yml` and a `.env` next to it (see `.env.example`
+for the full list — at minimum `APP_URL`, `ENCRYPTION_KEY`, `POSTGRES_PASSWORD`,
+`DATABASE_URL`, the `SMTP_*` settings, and `INSTANCE_ADMINS`):
 
 ```bash
-cd deploy/ansible
-./gen-secrets.sh                 # once; BACK UP .secrets.yml
-# edit vars.yml: app_bind (WG IP), smtp_*, santa_tag (pin a version)
-ansible all -m ping
-ansible-playbook deploy.yml      # pulls image, renders .env, compose up, waits /healthz
+# pin a version with the image tag, e.g. SANTA_TAG=v1.2.3 in .env
+docker compose -f compose.prod.yml --env-file .env pull
+docker compose -f compose.prod.yml --env-file .env up -d
+curl -fsS localhost:3000/healthz   # expect 200
 ```
 
-Upgrades = push a new tag (CI publishes the image), bump `santa_tag`, re-run the
-playbook. Migrations run automatically at container startup.
+Upgrades = push a new `vX.Y.Z` tag (CI publishes the image), bump the tag in
+`.env`, then re-pull and `up -d`. Migrations run automatically at container
+startup.
+
+> Back up the database **and** the `ENCRYPTION_KEY` together — each is useless
+> without the other.
