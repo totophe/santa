@@ -15,6 +15,8 @@ import {
 } from '@sequelize/core/decorators-legacy';
 
 export type MemberRole = 'member' | 'admin';
+/** 'pending' = a join request awaiting admin approval; 'active' = a real member. */
+export type MemberStatus = 'active' | 'pending';
 
 @Table({ tableName: 'membership', timestamps: false, underscored: true })
 export class Membership extends Model<
@@ -38,6 +40,11 @@ export class Membership extends Model<
   @NotNull
   @Default('member')
   declare role: CreationOptional<MemberRole>;
+
+  @Attribute(DataTypes.TEXT)
+  @NotNull
+  @Default('active')
+  declare status: CreationOptional<MemberStatus>;
 
   @Attribute(DataTypes.DATE)
   declare createdAt: CreationOptional<Date>;

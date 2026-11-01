@@ -21,8 +21,14 @@ export interface EditionContext {
  */
 @Injectable()
 export class AccessService {
+  /** An ACTIVE membership only — a pending join request is not yet a member. */
   async getMembership(groupId: string, userId: string): Promise<Membership | null> {
-    return Membership.findOne({ where: { groupId, userId } });
+    return Membership.findOne({ where: { groupId, userId, status: 'active' } });
+  }
+
+  /** A pending join request, if one exists (used by the approval flow). */
+  async getPendingRequest(groupId: string, userId: string): Promise<Membership | null> {
+    return Membership.findOne({ where: { groupId, userId, status: 'pending' } });
   }
 
   async requireMember(groupId: string, userId: string): Promise<Membership> {

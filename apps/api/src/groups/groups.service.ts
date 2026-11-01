@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -15,9 +16,10 @@ import {
   Participant,
   User,
 } from '../database/models';
+import type { GroupVisibility } from '../database/models/group.model';
 import { randomUrlToken } from '../auth/tokens';
 import type { SessionUser } from '../auth/auth.service';
-import type { CreateGroupDto, EditionInputDto } from './dto';
+import type { CreateGroupDto, EditionInputDto, GroupSettingsDto } from './dto';
 import { AccessService } from './access.service';
 import { RateLimitService, DAY } from '../safety/rate-limit.service';
 
@@ -32,6 +34,9 @@ export interface EditionSummary {
   daysToGo: number | null;
   myStatus: 'invited' | 'confirmed' | null;
   counts: { participants: number; confirmed: number };
+  // Set only by listMyActiveEditions (the Home feed needs the owning group).
+  groupId?: string;
+  groupName?: string;
 }
 
 export interface GroupSummary {
@@ -39,6 +44,8 @@ export interface GroupSummary {
   name: string;
   defaultLanguage: string;
   role: string;
+  memberCount: number;
+  pendingCount: number;
   currentEdition: EditionSummary | null;
 }
 
@@ -81,12 +88,13 @@ export class GroupsService {
           defaultLanguage: dto.defaultLanguage ?? this.config.defaultLanguage,
           createdBy: user.id,
           lastActivityAt: new Date(),
+          inviteToken: randomUrlToken(16),
         },
         { transaction: tx },
       );
 
       await Membership.create(
-        { groupId: group.id, userId: user.id, role: 'admin' },
+        { groupId: group.id, userId: user.id, role: 'admin', status: 'active' },
         { transaction: tx },
       );
 
@@ -96,13 +104,15 @@ export class GroupsService {
 
     return {
       ...result,
-      inviteUrl: this.inviteUrl(result.edition.inviteToken),
+      inviteUrl: this.inviteUrl(result.group.inviteToken),
     };
   }
 
   /**
-   * Create an edition (open, with a fresh invite token) and enrol the creator as
-   * a confirmed participant. Shared by group creation and starting a new edition.
+   * Create an edition (open) and enrol the group's active members as participants:
+   * the creator is confirmed, everyone else is invited (they still RSVP). For a
+   * brand-new group the creator is the only member, so this is just them.
+   * (PR2 lets the admin deselect members before creating.)
    */
   private async buildEdition(
     tx: Transaction,
@@ -124,17 +134,39 @@ export class GroupsService {
       },
       { transaction: tx },
     );
-    // The creator is a confirmed participant from the start.
-    await Participant.create(
-      {
-        editionId: edition.id,
-        userId: user.id,
-        status: 'confirmed',
-        confirmedAt: new Date(),
-      },
-      { transaction: tx },
-    );
+    const members = await Membership.findAll({
+      where: { groupId, status: 'active' },
+      transaction: tx,
+    });
+    for (const m of members) {
+      const isCreator = m.userId === user.id;
+      await Participant.create(
+        {
+          editionId: edition.id,
+          userId: m.userId,
+          status: isCreator ? 'confirmed' : 'invited',
+          confirmedAt: isCreator ? new Date() : null,
+        },
+        { transaction: tx },
+      );
+    }
     return edition;
+  }
+
+  /** Add a (newly joined/approved) member to the group's current open edition as invited. */
+  private async addToOpenEdition(tx: Transaction, groupId: string, userId: string): Promise<void> {
+    const edition = await Edition.findOne({ where: { groupId, state: 'open' }, transaction: tx });
+    if (!edition) return;
+    const existing = await Participant.findOne({
+      where: { editionId: edition.id, userId },
+      transaction: tx,
+    });
+    if (!existing) {
+      await Participant.create(
+        { editionId: edition.id, userId, status: 'invited' },
+        { transaction: tx },
+      );
+    }
   }
 
   /**
@@ -171,10 +203,10 @@ export class GroupsService {
   async leaveGroup(groupId: string, user: SessionUser): Promise<{ ok: true }> {
     const membership = await this.access.requireMember(groupId, user.id);
 
-    const memberCount = await Membership.count({ where: { groupId } });
+    const memberCount = await Membership.count({ where: { groupId, status: 'active' } });
     if (memberCount <= 1) throw new ConflictException('delete_instead');
     if (membership.role === 'admin') {
-      const adminCount = await Membership.count({ where: { groupId, role: 'admin' } });
+      const adminCount = await Membership.count({ where: { groupId, role: 'admin', status: 'active' } });
       if (adminCount <= 1) throw new ConflictException('promote_another_admin_first');
     }
 
@@ -199,30 +231,54 @@ export class GroupsService {
   }
 
   async listMyGroups(userId: string): Promise<GroupSummary[]> {
-    const memberships = await Membership.findAll({ where: { userId } });
+    const memberships = await Membership.findAll({ where: { userId, status: 'active' } });
     const summaries: GroupSummary[] = [];
     for (const m of memberships) {
       const group = await Group.findByPk(m.groupId);
       if (!group) continue;
       const edition = await this.currentEdition(group.id);
+      const memberCount = await Membership.count({ where: { groupId: group.id, status: 'active' } });
+      const pendingCount =
+        m.role === 'admin'
+          ? await Membership.count({ where: { groupId: group.id, status: 'pending' } })
+          : 0;
       summaries.push({
         id: group.id,
         name: group.name,
         defaultLanguage: group.defaultLanguage,
         role: m.role,
+        memberCount,
+        pendingCount,
         currentEdition: edition ? await this.editionSummary(edition, userId) : null,
       });
     }
     return summaries;
   }
 
+  /** Active editions across the user's groups (drives the app Home). */
+  async listMyActiveEditions(userId: string): Promise<EditionSummary[]> {
+    const memberships = await Membership.findAll({ where: { userId, status: 'active' } });
+    const out: EditionSummary[] = [];
+    for (const m of memberships) {
+      const group = await Group.findByPk(m.groupId);
+      if (!group) continue;
+      const edition = await this.currentEdition(group.id);
+      if (!edition) continue;
+      const participant = await Participant.findOne({ where: { editionId: edition.id, userId } });
+      if (!participant) continue; // not one of your editions
+      const summary = await this.editionSummary(edition, userId);
+      out.push({ ...summary, groupId: group.id, groupName: group.name });
+    }
+    out.sort((a, b) => (a.daysToGo ?? 1e9) - (b.daysToGo ?? 1e9));
+    return out;
+  }
+
   async getGroupDetail(groupId: string, userId: string) {
-    const membership = await Membership.findOne({ where: { groupId, userId } });
-    if (!membership) throw new NotFoundException();
+    const membership = await this.access.requireMember(groupId, userId);
     const group = await Group.findByPk(groupId);
     if (!group) throw new NotFoundException();
 
-    const members = await Membership.findAll({ where: { groupId } });
+    const members = await Membership.findAll({ where: { groupId, status: 'active' } });
     const memberDtos = await Promise.all(
       members.map(async (mem) => {
         const u = await User.findByPk(mem.userId);
@@ -241,11 +297,15 @@ export class GroupsService {
       order: [['createdAt', 'DESC']],
     });
 
+    const isAdmin = membership.role === 'admin';
     return {
       id: group.id,
       name: group.name,
       defaultLanguage: group.defaultLanguage,
       role: membership.role,
+      visibility: group.visibility,
+      inviteUrl: isAdmin ? this.inviteUrl(group.inviteToken) : undefined,
+      pendingCount: isAdmin ? await Membership.count({ where: { groupId, status: 'pending' } }) : 0,
       members: memberDtos,
       // A group with any drawn edition can't be deleted (irreversible history).
       hasDrawnEdition: editions.some((e) => e.drawnAt != null),
@@ -257,6 +317,125 @@ export class GroupsService {
         exchangeDate: e.exchangeDate,
       })),
     };
+  }
+
+  // ─── Group-level join & approval ──────────────────────────────────────
+
+  /** Pre-auth: the join page shows only the group name and how joining works. */
+  async groupJoinInfo(token: string) {
+    const group = await Group.findOne({ where: { inviteToken: token } });
+    if (!group) return { state: 'revoked' as const };
+    return { state: 'open' as const, groupName: group.name, visibility: group.visibility };
+  }
+
+  /**
+   * Join a group by its invite token. Semi-public groups add you immediately;
+   * private groups create a pending request for an admin to approve.
+   */
+  async joinGroup(
+    token: string,
+    user: SessionUser,
+  ): Promise<{ groupId: string; state: 'joined' | 'pending' }> {
+    const group = await Group.findOne({ where: { inviteToken: token } });
+    if (!group) throw new NotFoundException('revoked');
+
+    return this.sequelize.transaction(async (tx) => {
+      const existing = await Membership.findOne({
+        where: { groupId: group.id, userId: user.id },
+        transaction: tx,
+      });
+      if (existing) {
+        return { groupId: group.id, state: existing.status === 'active' ? 'joined' : 'pending' };
+      }
+
+      const count = await Membership.count({
+        where: { groupId: group.id, status: 'active' },
+        transaction: tx,
+      });
+      if (count >= this.config.rateLimits.membersPerGroup) {
+        throw new BadRequestException('group_full');
+      }
+
+      if (group.visibility === 'semi_public') {
+        await Membership.create(
+          { groupId: group.id, userId: user.id, role: 'member', status: 'active' },
+          { transaction: tx },
+        );
+        await this.addToOpenEdition(tx, group.id, user.id);
+        await Group.update(
+          { lastActivityAt: new Date() },
+          { where: { id: group.id }, transaction: tx },
+        );
+        return { groupId: group.id, state: 'joined' };
+      }
+
+      await Membership.create(
+        { groupId: group.id, userId: user.id, role: 'member', status: 'pending' },
+        { transaction: tx },
+      );
+      return { groupId: group.id, state: 'pending' };
+    });
+  }
+
+  async listRequests(groupId: string, admin: SessionUser) {
+    await this.access.requireAdmin(groupId, admin.id);
+    const pending = await Membership.findAll({
+      where: { groupId, status: 'pending' },
+      order: [['createdAt', 'ASC']],
+    });
+    const requests = await Promise.all(
+      pending.map(async (m) => {
+        const u = await User.findByPk(m.userId);
+        return {
+          userId: m.userId,
+          firstName: u?.firstName ?? null,
+          lastName: u?.lastName ?? null,
+          email: u?.email ?? null,
+          requestedAt: m.createdAt,
+        };
+      }),
+    );
+    return { requests };
+  }
+
+  async approveRequest(groupId: string, targetUserId: string, admin: SessionUser): Promise<{ ok: true }> {
+    await this.access.requireAdmin(groupId, admin.id);
+    const req = await this.access.getPendingRequest(groupId, targetUserId);
+    if (!req) throw new NotFoundException();
+    await this.sequelize.transaction(async (tx) => {
+      req.status = 'active';
+      await req.save({ transaction: tx });
+      await this.addToOpenEdition(tx, groupId, targetUserId);
+      await Group.update({ lastActivityAt: new Date() }, { where: { id: groupId }, transaction: tx });
+    });
+    return { ok: true as const };
+  }
+
+  async rejectRequest(groupId: string, targetUserId: string, admin: SessionUser): Promise<{ ok: true }> {
+    await this.access.requireAdmin(groupId, admin.id);
+    const req = await this.access.getPendingRequest(groupId, targetUserId);
+    if (!req) throw new NotFoundException();
+    await req.destroy();
+    return { ok: true as const };
+  }
+
+  async regenerateGroupInvite(groupId: string, admin: SessionUser): Promise<{ inviteUrl: string }> {
+    await this.access.requireAdmin(groupId, admin.id);
+    const group = await Group.findByPk(groupId);
+    if (!group) throw new NotFoundException();
+    group.inviteToken = randomUrlToken(16);
+    await group.save();
+    return { inviteUrl: this.inviteUrl(group.inviteToken) };
+  }
+
+  async saveGroupSettings(groupId: string, admin: SessionUser, dto: GroupSettingsDto): Promise<{ ok: true }> {
+    await this.access.requireAdmin(groupId, admin.id);
+    const group = await Group.findByPk(groupId);
+    if (!group) throw new NotFoundException();
+    if (dto.name !== undefined) group.name = dto.name.trim();
+    if (dto.visibility !== undefined) group.visibility = dto.visibility as GroupVisibility;
+    await group.save();
+    return { ok: true as const };
   }
 
   /** The single non-archived edition, if any. */

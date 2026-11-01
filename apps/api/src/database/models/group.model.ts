@@ -14,6 +14,8 @@ import {
   Table,
 } from '@sequelize/core/decorators-legacy';
 
+export type GroupVisibility = 'private' | 'semi_public';
+
 @Table({ tableName: 'group', timestamps: false, underscored: true })
 export class Group extends Model<
   InferAttributes<Group>,
@@ -27,6 +29,16 @@ export class Group extends Model<
   @Attribute(DataTypes.TEXT)
   @NotNull
   declare name: string;
+
+  // 'private' = admin approves join requests; 'semi_public' = joining is immediate.
+  @Attribute(DataTypes.TEXT)
+  @NotNull
+  @Default('private')
+  declare visibility: CreationOptional<GroupVisibility>;
+
+  // Shareable group invite token (replaces the per-edition token for joining).
+  @Attribute(DataTypes.TEXT)
+  declare inviteToken: string | null;
 
   @Attribute(DataTypes.TEXT)
   @NotNull

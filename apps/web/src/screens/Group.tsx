@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { api, ApiError, type GroupDetail, type PublicMeta } from '../api';
+import { useCallback, useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { api, ApiError, type GroupDetail, type GroupVisibility, type JoinRequest, type PublicMeta } from '../api';
 import { useI18n } from '../i18n';
 
 export function Group({
@@ -16,9 +17,8 @@ export function Group({
   const { t } = useI18n();
   const [group, setGroup] = useState<GroupDetail | null>(null);
 
-  useEffect(() => {
-    void api.group(groupId).then(setGroup);
-  }, [groupId]);
+  const load = useCallback(async () => setGroup(await api.group(groupId)), [groupId]);
+  useEffect(() => { void load(); }, [load]);
 
   if (!group) return <p className="muted center">{t('web.loading')}</p>;
 
@@ -28,6 +28,9 @@ export function Group({
   return (
     <div className="stack">
       <h1 style={{ fontSize: 34 }}>{group.name}</h1>
+
+      {isAdmin && <JoinRequests group={group} reload={load} />}
+      {isAdmin && group.inviteUrl && <GroupInviteCard group={group} reload={load} />}
 
       <div className="card stack">
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('group.editions')}</div>
@@ -148,6 +151,88 @@ function NewEditionForm({ groupId, meta, onCreated }: { groupId: string; meta: P
       <button className="btn btn-primary" disabled={busy} type="submit">{busy ? t('create.creating') : t('group.new_edition')}</button>
       <button className="btn btn-ghost" type="button" onClick={() => setOpen(false)}>{t('action.cancel')}</button>
     </form>
+  );
+}
+
+function JoinRequests({ group, reload }: { group: GroupDetail; reload: () => Promise<void> }) {
+  const { t } = useI18n();
+  const [requests, setRequests] = useState<JoinRequest[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => setRequests((await api.groupRequests(group.id)).requests), [group.id]);
+  useEffect(() => { void load(); }, [load]);
+
+  if (!requests || requests.length === 0) return null;
+
+  async function act(fn: () => Promise<unknown>) {
+    setBusy(true);
+    try { await fn(); await load(); await reload(); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="card stack">
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('group.requests_title')}</div>
+      {requests.map((r) => (
+        <div key={r.userId} style={{ display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--line)', paddingBottom: 8 }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontWeight: 600 }}>{[r.firstName, r.lastName].filter(Boolean).join(' ') || r.email || '…'}</span>
+            {r.email && <span className="muted" style={{ display: 'block', fontSize: 12, wordBreak: 'break-all' }}>{r.email}</span>}
+          </span>
+          <button className="btn btn-primary" style={{ width: 'auto', minHeight: 38, padding: '0 14px' }} disabled={busy} onClick={() => act(() => api.approveRequest(group.id, r.userId))}>{t('group.approve')}</button>
+          <button className="btn btn-ghost" style={{ width: 'auto', minHeight: 38, padding: '0 10px', color: 'var(--danger)' }} disabled={busy} onClick={() => act(() => api.rejectRequest(group.id, r.userId))}>{t('group.reject')}</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GroupInviteCard({ group, reload }: { group: GroupDetail; reload: () => Promise<void> }) {
+  const { t } = useI18n();
+  const url = group.inviteUrl ?? '';
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  async function setVisibility(v: GroupVisibility) {
+    if (v === group.visibility) return;
+    setBusy(true);
+    try { await api.saveGroupSettings(group.id, { visibility: v }); await reload(); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="card stack">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 22 }}>🎟️</span>
+        <h2 style={{ fontSize: 22, flex: 1 }}>{t('group.invite_title')}</h2>
+      </div>
+
+      {/* Visibility: private needs approval, semi-public joins immediately. */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        {(['private', 'semi_public'] as const).map((v) => (
+          <button key={v} type="button" disabled={busy} onClick={() => setVisibility(v)}
+            className={group.visibility === v ? 'btn btn-primary' : 'btn btn-soft'} style={{ flex: 1, minHeight: 44, fontSize: 14 }}>
+            {t('group.visibility_' + v)}
+          </button>
+        ))}
+      </div>
+      <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>{t('group.visibility_' + group.visibility + '_hint')}</p>
+
+      <div style={{ alignSelf: 'center', background: '#fff', padding: 14, borderRadius: 14 }}>
+        <QRCodeSVG value={url} size={168} level="M" />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {canShare && (
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { void navigator.share({ title: group.name, url }).catch(() => {}); }}>
+            {t('edition.share')}
+          </button>
+        )}
+        <button className="btn btn-soft" style={{ flex: 1 }}
+          onClick={() => { void navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+          {copied ? t('edition.invite_copied') : t('edition.invite_copy')}
+        </button>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>{url}</div>
+    </div>
   );
 }
 

@@ -53,6 +53,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export type GroupVisibility = 'private' | 'semi_public';
+
 export interface EditionSummary {
   id: string;
   name: string;
@@ -64,12 +66,17 @@ export interface EditionSummary {
   daysToGo: number | null;
   myStatus: 'invited' | 'confirmed' | null;
   counts: { participants: number; confirmed: number };
+  // present on the Home active-editions feed
+  groupId?: string;
+  groupName?: string;
 }
 export interface GroupSummary {
   id: string;
   name: string;
   defaultLanguage: string;
   role: string;
+  memberCount: number;
+  pendingCount: number;
   currentEdition: EditionSummary | null;
 }
 export interface EditionDetail extends EditionSummary {
@@ -84,9 +91,19 @@ export interface GroupDetail {
   name: string;
   defaultLanguage: string;
   role: string;
+  visibility: GroupVisibility;
+  inviteUrl?: string;
+  pendingCount: number;
   hasDrawnEdition: boolean;
   members: Array<{ userId: string; firstName: string | null; lastName: string | null; role: string; isYou: boolean }>;
   editions: Array<{ id: string; name: string; theme: string; state: string; exchangeDate: string | null }>;
+}
+export interface JoinRequest {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  requestedAt: string;
 }
 export interface ParticipantRow {
   id: string;
@@ -160,6 +177,7 @@ export const api = {
   me: () => request<{ user: SessionUser }>('/api/auth/me'),
 
   listGroups: () => request<{ groups: GroupSummary[] }>('/api/groups'),
+  myEditions: () => request<{ editions: EditionSummary[] }>('/api/groups/mine/active-editions'),
   createGroup: (body: unknown) =>
     request<{ group: { id: string }; edition: { id: string }; inviteUrl: string }>('/api/groups', {
       method: 'POST',
@@ -176,6 +194,16 @@ export const api = {
     request<{ ok: true }>(`/api/groups/${groupId}/leave`, { method: 'POST' }),
   deleteGroup: (groupId: string, confirmName: string) =>
     request<{ ok: true }>(`/api/groups/${groupId}`, { method: 'DELETE', body: JSON.stringify({ confirmName }) }),
+  saveGroupSettings: (groupId: string, body: { name?: string; visibility?: GroupVisibility }) =>
+    request<{ ok: true }>(`/api/groups/${groupId}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
+  regenerateGroupInvite: (groupId: string) =>
+    request<{ inviteUrl: string }>(`/api/groups/${groupId}/invite/regenerate`, { method: 'POST' }),
+  groupRequests: (groupId: string) =>
+    request<{ requests: JoinRequest[] }>(`/api/groups/${groupId}/requests`),
+  approveRequest: (groupId: string, userId: string) =>
+    request<{ ok: true }>(`/api/groups/${groupId}/requests/${userId}/approve`, { method: 'POST' }),
+  rejectRequest: (groupId: string, userId: string) =>
+    request<{ ok: true }>(`/api/groups/${groupId}/requests/${userId}/reject`, { method: 'POST' }),
 
   instanceOverview: () => request<InstanceOverview>('/api/instance'),
   instanceUsers: () => request<{ users: InstanceUser[] }>('/api/instance/users'),
@@ -196,8 +224,9 @@ export const api = {
   regenerateInvite: (id: string) => request<{ inviteUrl: string }>(`/api/editions/${id}/invite/regenerate`, { method: 'POST' }),
 
   joinInfo: (token: string) =>
-    request<{ state: string; groupName?: string; editionName?: string; theme?: string }>(`/api/join/${token}`),
-  join: (token: string) => request<{ editionId: string }>(`/api/join/${token}`, { method: 'POST' }),
+    request<{ state: string; groupName?: string; visibility?: GroupVisibility }>(`/api/join/${token}`),
+  join: (token: string) =>
+    request<{ groupId: string; state: 'joined' | 'pending' }>(`/api/join/${token}`, { method: 'POST' }),
 
   myWishlist: (id: string) => request<MyWishlist>(`/api/editions/${id}/my-wishlist`),
   addItem: (id: string, item: unknown) =>
