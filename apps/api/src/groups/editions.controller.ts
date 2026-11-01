@@ -25,6 +25,11 @@ export class EditionsController {
     return this.editions.listParticipants(id, user);
   }
 
+  @Get(':id/exclusions')
+  exclusions(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.editions.getExclusions(id, user);
+  }
+
   @Post(':id/confirm')
   @HttpCode(200)
   async confirm(@CurrentUser() user: SessionUser, @Param('id') id: string) {

@@ -9,6 +9,7 @@ import { Participant } from './participant.model';
 import { Wishlist } from './wishlist.model';
 import { WishlistItem } from './wishlist-item.model';
 import { Assignment } from './assignment.model';
+import { EditionExclusion } from './edition-exclusion.model';
 import { Thread } from './thread.model';
 import { ChatMessage } from './chat-message.model';
 import { ThreadMessage } from './thread-message.model';
@@ -26,6 +27,7 @@ export {
   Wishlist,
   WishlistItem,
   Assignment,
+  EditionExclusion,
   Thread,
   ChatMessage,
   ThreadMessage,
@@ -49,6 +51,7 @@ export const ALL_MODELS = [
   Wishlist,
   WishlistItem,
   Assignment,
+  EditionExclusion,
   Thread,
   ChatMessage,
   ThreadMessage,

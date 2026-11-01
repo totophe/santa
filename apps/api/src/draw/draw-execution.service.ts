@@ -13,6 +13,7 @@ import {
   Assignment,
   ChatMessage,
   Edition,
+  EditionExclusion,
   Participant,
   Thread,
   User,
@@ -22,7 +23,13 @@ import { MailService } from '../mail/mail.service';
 import { I18nService } from '../i18n/i18n.service';
 import { AccessService } from '../groups/access.service';
 import { AliasService } from '../aliases/alias.service';
-import { DrawService, type HistoryEdition, MIN_PARTICIPANTS } from './draw.service';
+import {
+  DrawService,
+  type HistoryEdition,
+  MIN_PARTICIPANTS,
+  RestrictionsImpossibleError,
+  forbiddenSet,
+} from './draw.service';
 import type { SessionUser } from '../auth/auth.service';
 
 export interface DrawCard {
@@ -76,8 +83,28 @@ export class DrawExecutionService {
     }
     const userIds = [...userIdToParticipant.keys()];
 
+    // Exclusion restrictions → forbidden giver↔recipient pairs (by user id).
+    const participantToUser = new Map<string, string>();
+    for (const p of participants) if (p.userId) participantToUser.set(p.id, p.userId);
+    const exclusions = await EditionExclusion.findAll({ where: { editionId } });
+    const forbiddenPairs: Array<[string, string]> = [];
+    for (const e of exclusions) {
+      const a = participantToUser.get(e.participantAId);
+      const b = participantToUser.get(e.participantBId);
+      if (a && b) forbiddenPairs.push([a, b]); // only when both are drawing
+    }
+    const forbidden = forbiddenSet(forbiddenPairs);
+
     const history = await this.buildHistory(ctx.group.id, editionId);
-    const result = this.draw.draw(userIds, history);
+    let result;
+    try {
+      result = this.draw.draw(userIds, history, forbidden);
+    } catch (err) {
+      if (err instanceof RestrictionsImpossibleError) {
+        throw new ConflictException('restrictions_impossible');
+      }
+      throw err;
+    }
 
     const aliasKeys = this.aliases.assign(ctx.edition.theme, participants.length);
 

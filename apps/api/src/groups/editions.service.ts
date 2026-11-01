@@ -10,6 +10,7 @@ import { SEQUELIZE } from '../database/database.module';
 import { CONFIG, type AppConfig } from '../config/env';
 import {
   Edition,
+  EditionExclusion,
   Group,
   Membership,
   Participant,
@@ -142,6 +143,30 @@ export class EditionsService {
     ctx.edition.inviteToken = randomUrlToken(16);
     await ctx.edition.save();
     return { inviteUrl: this.groups.inviteUrl(ctx.edition.inviteToken) };
+  }
+
+  /** The edition's exclusion pairs (couples who won't draw each other). Admin only. */
+  async getExclusions(editionId: string, user: SessionUser): Promise<{
+    exclusions: Array<{ aParticipantId: string; bParticipantId: string; aName: string; bName: string }>;
+  }> {
+    const ctx = await this.access.getEditionContext(editionId, user.id);
+    await this.access.requireAdmin(ctx.group.id, user.id);
+    const rows = await EditionExclusion.findAll({ where: { editionId } });
+    const name = async (participantId: string): Promise<string> => {
+      const p = await Participant.findByPk(participantId);
+      if (!p) return '…';
+      const u = p.userId ? await User.findByPk(p.userId) : null;
+      return (u?.firstName ?? p.invitedFirstName ?? '…').trim();
+    };
+    const exclusions = await Promise.all(
+      rows.map(async (r) => ({
+        aParticipantId: r.participantAId,
+        bParticipantId: r.participantBId,
+        aName: await name(r.participantAId),
+        bName: await name(r.participantBId),
+      })),
+    );
+    return { exclusions };
   }
 
   private async touch(groupId: string): Promise<void> {
