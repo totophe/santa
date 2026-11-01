@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, ApiError, type PublicMeta, type SessionUser } from '../api';
 import { useI18n } from '../i18n';
+import { pushSupported, isIos, isStandalone, permission, isSubscribed, enablePush, disablePush } from '../push';
 
 export function Account({
   user,
@@ -82,8 +83,60 @@ export function Account({
         <button className="btn btn-primary" disabled={busy} type="submit">{t('action.save')}</button>
       </form>
 
+      {meta?.pushEnabled && <NotificationsCard publicKey={meta.pushPublicKey} />}
+
       <button className="btn btn-ghost" onClick={onSignedOut}>{t('action.sign_out')}</button>
       <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={remove}>{t('action.delete_account')}</button>
+    </div>
+  );
+}
+
+function NotificationsCard({ publicKey }: { publicKey: string | null }) {
+  const { t } = useI18n();
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const supported = pushSupported();
+  const iosGate = isIos() && !isStandalone(); // iOS needs an installed PWA
+  const blocked = supported && permission() === 'denied';
+
+  useEffect(() => {
+    if (supported) void isSubscribed().then(setOn).catch(() => {});
+  }, [supported]);
+
+  async function toggle() {
+    if (!publicKey) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (on) { await disablePush(); setOn(false); }
+      else { await enablePush(publicKey); setOn(true); }
+    } catch {
+      setError(permission() === 'denied' ? t('notifications.blocked') : t('notifications.error'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('notifications.title')}</div>
+      {iosGate ? (
+        <p className="muted" style={{ fontSize: 14 }}>{t('notifications.ios_hint')}</p>
+      ) : !supported ? (
+        <p className="muted" style={{ fontSize: 14 }}>{t('notifications.unsupported')}</p>
+      ) : blocked ? (
+        <p className="muted" style={{ fontSize: 14 }}>{t('notifications.blocked')}</p>
+      ) : (
+        <>
+          {on && <p className="muted" style={{ fontSize: 14 }}>{t('notifications.on')}</p>}
+          <button className={on ? 'btn btn-ghost' : 'btn btn-primary'} disabled={busy} onClick={toggle}>
+            {on ? t('notifications.disable') : t('notifications.enable')}
+          </button>
+        </>
+      )}
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }

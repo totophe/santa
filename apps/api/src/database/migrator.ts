@@ -5,8 +5,9 @@ import * as m0002 from './migrations/0002-participant-draw-changed';
 import * as m0003 from './migrations/0003-rate-limit';
 import * as m0004 from './migrations/0004-group-join';
 import * as m0005 from './migrations/0005-edition-exclusions';
+import * as m0006 from './migrations/0006-push-subscriptions';
 
-const MIGRATIONS = [m0001, m0002, m0003, m0004, m0005];
+const MIGRATIONS = [m0001, m0002, m0003, m0004, m0005, m0006];
 
 /**
  * Minimal forward-only storage backed by a migrations_meta table. Umzug's

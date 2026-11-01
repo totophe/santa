@@ -232,5 +232,17 @@
   "error.not_found": "This page doesn't exist, or you're not a member.",
   "error.generic": "Something went wrong. Please try again.",
   "error.session_ended": "Your session ended. Please sign in again.",
-  "error.offline": "You're offline. Santa needs a connection."
+  "error.offline": "You're offline. Santa needs a connection.",
+
+  "push.draw_ready_title": "Your draw is ready 🎁",
+  "push.chat_title": "New message",
+  "push.chat_body": "There's a new message in the group chat.",
+  "notifications.title": "Notifications",
+  "notifications.enable": "Enable notifications",
+  "notifications.disable": "Turn off notifications",
+  "notifications.on": "Notifications are on for this device.",
+  "notifications.blocked": "Notifications are blocked in your browser settings.",
+  "notifications.unsupported": "This browser doesn't support notifications.",
+  "notifications.ios_hint": "On iPhone/iPad, add Santa to your Home Screen first, then open it from there to enable notifications.",
+  "notifications.error": "Couldn't change notifications. Please try again."
 }

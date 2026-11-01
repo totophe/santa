@@ -14,6 +14,7 @@ import { Thread } from './thread.model';
 import { ChatMessage } from './chat-message.model';
 import { ThreadMessage } from './thread-message.model';
 import { EmailSuppression } from './email-suppression.model';
+import { PushSubscription } from './push-subscription.model';
 
 export {
   InstanceMeta,
@@ -32,6 +33,7 @@ export {
   ChatMessage,
   ThreadMessage,
   EmailSuppression,
+  PushSubscription,
 };
 
 /**
@@ -56,4 +58,5 @@ export const ALL_MODELS = [
   ChatMessage,
   ThreadMessage,
   EmailSuppression,
+  PushSubscription,
 ];

@@ -17,6 +17,7 @@ import { PrivacyModule } from './privacy/privacy.module';
 import { DrawModule } from './draw/draw.module';
 import { HealthModule } from './health/health.module';
 import { MetaModule } from './meta/meta.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { MetaModule } from './meta/meta.module';
     DrawModule,
     HealthModule,
     MetaModule,
+    PushModule,
   ],
 })
 export class AppModule {}

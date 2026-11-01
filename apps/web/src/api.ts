@@ -22,6 +22,8 @@ export interface PublicMeta {
   languages: string[];
   groupCreationOpen: boolean;
   themes: ThemeInfo[];
+  pushEnabled: boolean;
+  pushPublicKey: string | null;
 }
 
 class ApiError extends Error {
@@ -297,6 +299,11 @@ export const api = {
     }),
   signOut: () => request<{ ok: true }>('/api/auth/signout', { method: 'POST' }),
   deleteAccount: () => request<{ ok: true }>('/api/account', { method: 'DELETE' }),
+
+  pushSubscribe: (body: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    request<{ ok: true }>('/api/push/subscribe', { method: 'POST', body: JSON.stringify(body) }),
+  pushUnsubscribe: (endpoint: string) =>
+    request<{ ok: true }>('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
 };
 
 export { ApiError };
