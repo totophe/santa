@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { api, ApiError, type GroupSummary, type PublicMeta } from '../api';
+import { useCallback, useEffect, useState } from 'react';
+import { api, ApiError, type GroupSummary, type InviteEntry, type PublicMeta } from '../api';
 import { useI18n } from '../i18n';
+import { InviteRows, validInvites } from '../components/InviteRows';
 
 /** The groups you belong to; enter one to see members, editions, and manage it. */
 export function Groups({
@@ -16,9 +17,13 @@ export function Groups({
   const [groups, setGroups] = useState<GroupSummary[] | null>(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    void api.listGroups().then((r) => setGroups(r.groups));
-  }, []);
+  const load = useCallback(async () => setGroups((await api.listGroups()).groups), []);
+  useEffect(() => { void load(); }, [load]);
+
+  async function accept(groupId: string) {
+    await api.acceptInvite(groupId);
+    onOpenGroup(groupId);
+  }
 
   if (creating) return <CreateGroup meta={meta} onCreated={onOpenEdition} onCancel={() => setCreating(false)} />;
   if (!groups) return <p className="muted center">{t('web.loading')}</p>;
@@ -34,7 +39,14 @@ export function Groups({
         </div>
       )}
 
-      {groups.map((g) => (
+      {groups.map((g) => g.myStatus === 'invited' ? (
+        <div key={g.id} className="card stack" style={{ border: '1px solid var(--primary)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('invite.accept_title')}</div>
+          <div style={{ fontFamily: 'Chewy, cursive', fontSize: 24, color: 'var(--primary)' }}>{g.name}</div>
+          <p className="muted" style={{ marginTop: -6, fontSize: 14 }}>{t('invite.accept_body', { group: g.name })}</p>
+          <button className="btn btn-primary" onClick={() => accept(g.id)}>{t('invite.accept', { group: g.name })}</button>
+        </div>
+      ) : (
         <button
           key={g.id}
           className="card"
@@ -72,6 +84,7 @@ function CreateGroup({ meta, onCreated, onCancel }: { meta: PublicMeta | null; o
   const [editionName, setEditionName] = useState(`Christmas ${year}`);
   const [exchangeDate, setExchangeDate] = useState(`${year}-12-24`);
   const [budget, setBudget] = useState('');
+  const [invites, setInvites] = useState<InviteEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,9 +99,11 @@ function CreateGroup({ meta, onCreated, onCancel }: { meta: PublicMeta | null; o
     setBusy(true);
     setError(null);
     try {
+      const clean = validInvites(invites);
       const res = await api.createGroup({
         name: name.trim(),
         edition: { name: editionName.trim(), theme, exchangeDate, ...(budget ? { budgetAmount: budget, budgetCurrency: 'EUR' } : {}) },
+        ...(clean.length ? { invites: clean } : {}),
       });
       onCreated(res.edition.id);
     } catch (err) {
@@ -126,6 +141,11 @@ function CreateGroup({ meta, onCreated, onCancel }: { meta: PublicMeta | null; o
       <div className="field">
         <label>{t('create.budget')}</label>
         <input type="text" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="25" />
+      </div>
+      <div className="field">
+        <label>{t('invite.by_email')}</label>
+        <p className="muted" style={{ marginTop: -2, marginBottom: 6, fontSize: 13 }}>{t('invite.email_hint')}</p>
+        <InviteRows value={invites} onChange={setInvites} />
       </div>
       {error && <p className="error">{error}</p>}
       <button className="btn btn-primary" disabled={busy} type="submit">{busy ? t('create.creating') : t('action.create_group')}</button>

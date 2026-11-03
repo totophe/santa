@@ -79,6 +79,29 @@ export class MailService {
     await this.send({ to, subject, html, text });
   }
 
+  /** E2b — invitation to join a GROUP (admin typed the address). */
+  async sendGroupInvitation(
+    to: string,
+    inviterFirstName: string,
+    groupName: string,
+    link: string,
+    unsubscribeUrl: string,
+    lang: Language,
+  ): Promise<void> {
+    const subject = this.i18n.t('email.group_invitation.subject', { lang, vars: { name: inviterFirstName, group: groupName } });
+    const body = this.i18n.t('email.group_invitation.body', { lang, vars: { name: inviterFirstName, group: groupName } });
+    const button = this.i18n.t('action.join', { lang });
+    const why = this.i18n.t('email.invitation.why', { lang });
+    const unsub = this.i18n.t('email.unsubscribe', { lang });
+    const html = this.wrap(`
+      <p>${body}</p>
+      <p><a href="${link}" style="display:inline-block;background:#C8102E;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:700">${button}</a></p>
+      <p style="color:#888;font-size:12px">${why}<br><a href="${unsubscribeUrl}" style="color:#888">${unsub}</a></p>
+    `);
+    const text = `${body}\n\n${button}: ${link}\n\n${why}\n${unsub}: ${unsubscribeUrl}`;
+    await this.send({ to, subject, html, text });
+  }
+
   /** E3 — a new edition started (to a ticked existing member). */
   async sendNewEdition(to: string, editionName: string, link: string, lang: Language, theme: string): Promise<void> {
     const subject = this.i18n.t('email.new_edition.subject', { lang, theme, vars: { edition: editionName } });

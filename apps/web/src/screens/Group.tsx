@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { api, ApiError, type GroupDetail, type GroupVisibility, type JoinRequest, type PublicMeta } from '../api';
+import { api, ApiError, type GroupDetail, type GroupVisibility, type InviteEntry, type JoinRequest, type PublicMeta } from '../api';
 import { useI18n } from '../i18n';
+import { InviteRows, validInvites } from '../components/InviteRows';
 
 export function Group({
   groupId,
@@ -54,14 +55,32 @@ export function Group({
         })}
       </div>
 
-      {isAdmin && !hasLive && <NewEditionForm groupId={groupId} meta={meta} members={group.members} onCreated={onOpenEdition} />}
+      {isAdmin && <AddByEmailCard groupId={groupId} reload={load} />}
+
+      {isAdmin && !hasLive && (
+        <NewEditionForm
+          groupId={groupId}
+          meta={meta}
+          members={group.members.filter((m) => m.status === 'active' && m.userId).map((m) => ({ userId: m.userId as string, firstName: m.firstName, isYou: m.isYou }))}
+          onCreated={onOpenEdition}
+        />
+      )}
 
       <div className="card stack">
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('group.members')}</div>
         {group.members.map((m) => (
-          <div key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ flex: 1 }}>{(m.firstName ?? '…')}{m.isYou ? ` (${t('people.you')})` : ''}</span>
-            {m.role === 'admin' && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{t('people.admin')}</span>}
+          <div key={m.membershipId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              {(m.firstName ?? '…')}{m.isYou ? ` (${t('people.you')})` : ''}
+              {m.status === 'invited' && m.invitedEmail && <span className="muted" style={{ display: 'block', fontSize: 12, wordBreak: 'break-all' }}>{m.invitedEmail}</span>}
+            </span>
+            {m.status === 'invited'
+              ? <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>✉ {t('invite.invited_marker')}</span>
+              : m.role === 'admin' && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{t('people.admin')}</span>}
+            {isAdmin && m.status === 'invited' && (
+              <button className="btn btn-ghost" style={{ width: 'auto', minHeight: 32, padding: '0 8px', color: 'var(--danger)' }}
+                onClick={async () => { await api.cancelInvite(groupId, m.membershipId); await load(); }}>✕</button>
+            )}
           </div>
         ))}
       </div>
@@ -259,6 +278,42 @@ const selectStyle: React.CSSProperties = {
   flex: 1, minWidth: 0, minHeight: 40, borderRadius: 10, border: '1px solid var(--line)',
   padding: '0 10px', fontSize: 14, background: 'var(--bg)', color: 'var(--text)',
 };
+
+function AddByEmailCard({ groupId, reload }: { groupId: string; reload: () => Promise<void> }) {
+  const { t } = useI18n();
+  const [invites, setInvites] = useState<InviteEntry[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const clean = validInvites(invites);
+  async function send() {
+    if (clean.length === 0) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { results } = await api.inviteEmails(groupId, clean);
+      const sent = results.filter((r) => r.status === 'invited').length;
+      const skipped = results.length - sent;
+      setMsg(t('invite.sent', { n: sent }) + (skipped > 0 ? ' ' + t('invite.some_skipped') : ''));
+      setInvites([]);
+      await reload();
+    } catch {
+      setMsg(t('invite.some_skipped'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('invite.by_email')}</div>
+      <p className="muted" style={{ marginTop: -6, fontSize: 13 }}>{t('invite.email_hint')}</p>
+      <InviteRows value={invites} onChange={setInvites} />
+      {msg && <p className="muted" style={{ fontSize: 13, color: 'var(--success)' }}>{msg}</p>}
+      <button className="btn btn-primary" disabled={busy || clean.length === 0} onClick={send}>{t('invite.send')}</button>
+    </div>
+  );
+}
 
 function JoinRequests({ group, reload }: { group: GroupDetail; reload: () => Promise<void> }) {
   const { t } = useI18n();

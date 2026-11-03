@@ -77,9 +77,15 @@ export interface GroupSummary {
   name: string;
   defaultLanguage: string;
   role: string;
+  myStatus: 'active' | 'invited';
   memberCount: number;
   pendingCount: number;
   currentEdition: EditionSummary | null;
+}
+/** A name + email typed by an admin to invite someone to a group. */
+export interface InviteEntry {
+  firstName: string;
+  email: string;
 }
 export interface EditionDetail extends EditionSummary {
   groupId: string;
@@ -97,7 +103,16 @@ export interface GroupDetail {
   inviteUrl?: string;
   pendingCount: number;
   hasDrawnEdition: boolean;
-  members: Array<{ userId: string; firstName: string | null; lastName: string | null; role: string; isYou: boolean }>;
+  members: Array<{
+    membershipId: string;
+    userId: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    role: string;
+    status: 'active' | 'invited';
+    isYou: boolean;
+    invitedEmail: string | null;
+  }>;
   editions: Array<{ id: string; name: string; theme: string; state: string; exchangeDate: string | null }>;
 }
 export interface JoinRequest {
@@ -212,6 +227,13 @@ export const api = {
     request<{ exclusions: EditionExclusionRow[] }>(`/api/editions/${id}/exclusions`),
   leaveGroup: (groupId: string) =>
     request<{ ok: true }>(`/api/groups/${groupId}/leave`, { method: 'POST' }),
+  inviteEmails: (groupId: string, invites: InviteEntry[]) =>
+    request<{ results: Array<{ email: string; status: 'invited' | 'skipped' | 'already_member' }> }>(
+      `/api/groups/${groupId}/invites`, { method: 'POST', body: JSON.stringify({ invites }) }),
+  acceptInvite: (groupId: string) =>
+    request<{ ok: true }>(`/api/groups/${groupId}/accept`, { method: 'POST' }),
+  cancelInvite: (groupId: string, membershipId: string) =>
+    request<{ ok: true }>(`/api/groups/${groupId}/members/${membershipId}`, { method: 'DELETE' }),
   deleteGroup: (groupId: string, confirmName: string) =>
     request<{ ok: true }>(`/api/groups/${groupId}`, { method: 'DELETE', body: JSON.stringify({ confirmName }) }),
   saveGroupSettings: (groupId: string, body: { name?: string; visibility?: GroupVisibility }) =>
