@@ -1,8 +1,8 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentUser, SessionGuard } from '../auth/session.guard';
 import type { SessionUser } from '../auth/auth.service';
 import { GroupsService } from './groups.service';
-import { CreateGroupDto, EditionInputDto, FeasibilityDto, GroupSettingsDto } from './dto';
+import { CreateGroupDto, EditionInputDto, FeasibilityDto, GroupSettingsDto, InviteEmailsDto } from './dto';
 
 @Controller('groups')
 @UseGuards(SessionGuard)
@@ -11,7 +11,7 @@ export class GroupsController {
 
   @Get()
   async list(@CurrentUser() user: SessionUser) {
-    return { groups: await this.groups.listMyGroups(user.id) };
+    return { groups: await this.groups.listMyGroups(user) };
   }
 
   // Active editions across the user's groups (the app Home feed).
@@ -69,6 +69,32 @@ export class GroupsController {
   @HttpCode(200)
   async leave(@CurrentUser() user: SessionUser, @Param('groupId') groupId: string) {
     return this.groups.leaveGroup(groupId, user);
+  }
+
+  // ─── Invite by email ────────────────────────────────────────────────
+  @Post(':groupId/invites')
+  @HttpCode(200)
+  async invite(
+    @CurrentUser() user: SessionUser,
+    @Param('groupId') groupId: string,
+    @Body() dto: InviteEmailsDto,
+  ) {
+    return this.groups.inviteByEmail(groupId, user, dto.invites);
+  }
+
+  @Post(':groupId/accept')
+  @HttpCode(200)
+  async accept(@CurrentUser() user: SessionUser, @Param('groupId') groupId: string) {
+    return this.groups.acceptInvite(groupId, user);
+  }
+
+  @Delete(':groupId/members/:membershipId')
+  async cancelInvite(
+    @CurrentUser() user: SessionUser,
+    @Param('groupId') groupId: string,
+    @Param('membershipId') membershipId: string,
+  ) {
+    return this.groups.cancelInvite(groupId, membershipId, user);
   }
 
   // ─── Group settings & invite (admin) ────────────────────────────────

@@ -200,6 +200,30 @@ export class AuthService {
   }
 
   private async linkInvitations(email: string, userId: string): Promise<void> {
+    // 1. Group email-invites for this address → become active members, and join
+    //    the group's current open edition (following the invite link = accepting).
+    const invitedMemberships = await Membership.findAll({
+      where: { invitedEmail: email, status: 'invited' },
+    });
+    for (const m of invitedMemberships) {
+      const active = await Membership.findOne({
+        where: { groupId: m.groupId, userId, status: 'active' },
+      });
+      if (active) {
+        await m.destroy(); // already a member some other way — drop the stale invite
+        continue;
+      }
+      m.userId = userId;
+      m.status = 'active';
+      await m.save();
+      const edition = await Edition.findOne({ where: { groupId: m.groupId, state: 'open' } });
+      if (edition) {
+        const existing = await Participant.findOne({ where: { editionId: edition.id, userId } });
+        if (!existing) await Participant.create({ editionId: edition.id, userId, status: 'invited' });
+      }
+    }
+
+    // 2. Edition typed-invites (participants) → attach the account + ensure membership.
     const invited = await Participant.findAll({ where: { invitedEmail: email, userId: null } });
     for (const p of invited) {
       p.userId = userId;
@@ -208,7 +232,7 @@ export class AuthService {
       if (edition) {
         await Membership.findOrCreate({
           where: { groupId: edition.groupId, userId },
-          defaults: { groupId: edition.groupId, userId, role: 'member' },
+          defaults: { groupId: edition.groupId, userId, role: 'member', status: 'active' },
         });
       }
     }

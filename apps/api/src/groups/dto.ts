@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsEmail,
   IsIn,
   IsISO8601,
   IsOptional,
@@ -84,6 +85,25 @@ export class FeasibilityDto {
   exclusions?: ExclusionPairDto[];
 }
 
+/** A person invited to a group by email (name chosen by the inviting admin). */
+export class InviteEntryDto {
+  @IsString()
+  @Length(1, 30)
+  @Matches(NO_URL, { message: 'first name must not contain a URL' })
+  firstName!: string;
+
+  @IsEmail()
+  email!: string;
+}
+
+export class InviteEmailsDto {
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => InviteEntryDto)
+  invites!: InviteEntryDto[];
+}
+
 export class CreateGroupDto {
   @IsString()
   @Length(1, 60)
@@ -98,6 +118,13 @@ export class CreateGroupDto {
   @ValidateNested()
   @Type(() => EditionInputDto)
   edition!: EditionInputDto;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => InviteEntryDto)
+  invites?: InviteEntryDto[];
 }
 
 export class GroupSettingsDto {

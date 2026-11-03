@@ -20,10 +20,13 @@ import {
 import type { GroupVisibility } from '../database/models/group.model';
 import { isFeasible, forbiddenSet } from '../draw/draw.service';
 import { randomUrlToken } from '../auth/tokens';
-import type { SessionUser } from '../auth/auth.service';
-import type { CreateGroupDto, EditionInputDto, ExclusionPairDto, GroupSettingsDto } from './dto';
+import { AuthService, type SessionUser } from '../auth/auth.service';
+import type { CreateGroupDto, EditionInputDto, ExclusionPairDto, GroupSettingsDto, InviteEntryDto } from './dto';
 import { AccessService } from './access.service';
 import { RateLimitService, DAY } from '../safety/rate-limit.service';
+import { SuppressionService } from '../safety/suppression.service';
+import { MailService } from '../mail/mail.service';
+import { I18nService } from '../i18n/i18n.service';
 
 export interface EditionSummary {
   id: string;
@@ -46,6 +49,8 @@ export interface GroupSummary {
   name: string;
   defaultLanguage: string;
   role: string;
+  // 'invited' = you were added by email and haven't accepted yet.
+  myStatus: 'active' | 'invited';
   memberCount: number;
   pendingCount: number;
   currentEdition: EditionSummary | null;
@@ -58,6 +63,10 @@ export class GroupsService {
     @Inject(CONFIG) private readonly config: AppConfig,
     private readonly access: AccessService,
     private readonly rateLimit: RateLimitService,
+    private readonly suppression: SuppressionService,
+    private readonly mail: MailService,
+    private readonly auth: AuthService,
+    private readonly i18n: I18nService,
   ) {}
 
   canCreateGroup(email: string): boolean {
@@ -104,6 +113,11 @@ export class GroupsService {
       return { group, edition };
     });
 
+    // Seed the group with any typed email invites (after commit — sends emails).
+    if (dto.invites?.length) {
+      await this.inviteByEmail(result.group.id, user, dto.invites);
+    }
+
     return {
       ...result,
       inviteUrl: this.inviteUrl(result.group.inviteToken),
@@ -148,6 +162,7 @@ export class GroupsService {
 
     const participantByUser = new Map<string, string>();
     for (const m of members) {
+      if (!m.userId) continue; // active members always have an account
       const isCreator = m.userId === user.id;
       // Honour the selection, but the creator is always in if they didn't deselect.
       if (selected && !selected.has(m.userId)) continue;
@@ -230,6 +245,110 @@ export class GroupsService {
     }
   }
 
+  // ─── Invite by email ──────────────────────────────────────────────────
+
+  /**
+   * Invite people to a group by email (admins). Each becomes an `invited`
+   * membership and gets an email with a link that signs them in and lands on the
+   * group. The response is uniform whether or not the email already has an
+   * account (no enumeration); suppressed and already-member addresses are skipped.
+   */
+  async inviteByEmail(
+    groupId: string,
+    admin: SessionUser,
+    invites: InviteEntryDto[],
+  ): Promise<{ results: Array<{ email: string; status: 'invited' | 'skipped' | 'already_member' }> }> {
+    await this.access.requireAdmin(groupId, admin.id);
+    const group = await Group.findByPk(groupId);
+    if (!group) throw new NotFoundException();
+
+    const results: Array<{ email: string; status: 'invited' | 'skipped' | 'already_member' }> = [];
+    for (const entry of invites) {
+      const email = entry.email.trim().toLowerCase();
+      const firstName = entry.firstName.trim();
+      await this.rateLimit.hit('group_invite', admin.id, this.config.rateLimits.invitesPerAccount, DAY);
+
+      if (await this.suppression.isSuppressed(email)) {
+        results.push({ email, status: 'skipped' });
+        continue;
+      }
+
+      const existingUser = await User.findOne({ where: { email } });
+      const existing = existingUser
+        ? await Membership.findOne({ where: { groupId, userId: existingUser.id } })
+        : await Membership.findOne({ where: { groupId, invitedEmail: email, userId: null } });
+
+      if (existing && existing.status !== 'invited') {
+        // Already an active member or a pending join request — nothing to do.
+        results.push({ email, status: 'already_member' });
+        continue;
+      }
+      if (!existing) {
+        await Membership.create({
+          groupId,
+          userId: existingUser?.id ?? null,
+          invitedEmail: email,
+          invitedFirstName: firstName,
+          role: 'member',
+          status: 'invited',
+        });
+      }
+      await this.sendGroupInvite(email, admin, group); // (re)send
+      results.push({ email, status: 'invited' });
+    }
+    return { results };
+  }
+
+  private async sendGroupInvite(email: string, admin: SessionUser, group: Group): Promise<void> {
+    const link = await this.auth.createActionLink(email, `/groups/${group.id}`);
+    const unsubscribeUrl = `${this.config.appUrl}/unsubscribe/${this.suppression.hashFor(email)}`;
+    const lang = this.i18n.normalize(group.defaultLanguage);
+    try {
+      await this.mail.sendGroupInvitation(email, admin.firstName ?? 'A friend', group.name, link, unsubscribeUrl, lang);
+    } catch {
+      /* email failures must not fail the invite (same as edition invites) */
+    }
+  }
+
+  /** The invitee accepts: their invited membership becomes active. */
+  async acceptInvite(groupId: string, user: SessionUser): Promise<{ ok: true }> {
+    const invited = await Membership.findOne({
+      where: {
+        groupId,
+        status: 'invited',
+        [Op.or]: [{ userId: user.id }, { invitedEmail: user.email }],
+      },
+    });
+    if (!invited) throw new NotFoundException();
+
+    await this.sequelize.transaction(async (tx) => {
+      // If they already became an active member some other way, just drop the invite.
+      const already = await Membership.findOne({
+        where: { groupId, userId: user.id, status: 'active' },
+        transaction: tx,
+      });
+      if (already) {
+        await invited.destroy({ transaction: tx });
+        return;
+      }
+      invited.userId = user.id;
+      invited.status = 'active';
+      await invited.save({ transaction: tx });
+      await this.addToOpenEdition(tx, groupId, user.id);
+      await Group.update({ lastActivityAt: new Date() }, { where: { id: groupId }, transaction: tx });
+    });
+    return { ok: true as const };
+  }
+
+  /** Cancel an outstanding email invite (admins). */
+  async cancelInvite(groupId: string, membershipId: string, admin: SessionUser): Promise<{ ok: true }> {
+    await this.access.requireAdmin(groupId, admin.id);
+    const m = await Membership.findOne({ where: { id: membershipId, groupId, status: 'invited' } });
+    if (!m) throw new NotFoundException();
+    await m.destroy();
+    return { ok: true as const };
+  }
+
   /**
    * Start a new edition in an existing group (admins only). Enforces the
    * "one live edition at a time" rule so the recurring group reuses cleanly;
@@ -291,12 +410,35 @@ export class GroupsService {
     return token ? `${this.config.appUrl}/join/${token}` : '';
   }
 
-  async listMyGroups(userId: string): Promise<GroupSummary[]> {
-    const memberships = await Membership.findAll({ where: { userId, status: 'active' } });
-    const summaries: GroupSummary[] = [];
+  async listMyGroups(user: SessionUser): Promise<GroupSummary[]> {
+    // Active memberships, plus groups you've been invited to by email (not yet accepted).
+    const memberships = await Membership.findAll({
+      where: {
+        [Op.or]: [
+          { userId: user.id, status: ['active', 'invited'] },
+          { invitedEmail: user.email, status: 'invited' },
+        ],
+      },
+    });
+    const byGroup = new Map<string, Membership>();
     for (const m of memberships) {
+      // Prefer an active row over an invited one if both somehow exist.
+      const prev = byGroup.get(m.groupId);
+      if (!prev || (prev.status === 'invited' && m.status === 'active')) byGroup.set(m.groupId, m);
+    }
+
+    const summaries: GroupSummary[] = [];
+    for (const m of byGroup.values()) {
       const group = await Group.findByPk(m.groupId);
       if (!group) continue;
+      if (m.status === 'invited') {
+        // An invite you haven't accepted — show only the name + a Join prompt.
+        summaries.push({
+          id: group.id, name: group.name, defaultLanguage: group.defaultLanguage,
+          role: 'member', myStatus: 'invited', memberCount: 0, pendingCount: 0, currentEdition: null,
+        });
+        continue;
+      }
       const edition = await this.currentEdition(group.id);
       const memberCount = await Membership.count({ where: { groupId: group.id, status: 'active' } });
       const pendingCount =
@@ -308,9 +450,10 @@ export class GroupsService {
         name: group.name,
         defaultLanguage: group.defaultLanguage,
         role: m.role,
+        myStatus: 'active',
         memberCount,
         pendingCount,
-        currentEdition: edition ? await this.editionSummary(edition, userId) : null,
+        currentEdition: edition ? await this.editionSummary(edition, user.id) : null,
       });
     }
     return summaries;
@@ -339,16 +482,23 @@ export class GroupsService {
     const group = await Group.findByPk(groupId);
     if (!group) throw new NotFoundException();
 
-    const members = await Membership.findAll({ where: { groupId, status: 'active' } });
+    const isAdminViewer = membership.role === 'admin';
+    const members = await Membership.findAll({
+      where: { groupId, status: ['active', 'invited'] },
+    });
     const memberDtos = await Promise.all(
       members.map(async (mem) => {
-        const u = await User.findByPk(mem.userId);
+        const u = mem.userId ? await User.findByPk(mem.userId) : null;
         return {
+          membershipId: mem.id,
           userId: mem.userId,
-          firstName: u?.firstName ?? null,
+          firstName: u?.firstName ?? mem.invitedFirstName ?? null,
           lastName: u?.lastName ?? null,
           role: mem.role,
+          status: mem.status as 'active' | 'invited',
           isYou: mem.userId === userId,
+          // Only admins see the invited address, to manage the pending invite.
+          invitedEmail: isAdminViewer && mem.status === 'invited' ? mem.invitedEmail : null,
         };
       }),
     );
@@ -358,15 +508,14 @@ export class GroupsService {
       order: [['createdAt', 'DESC']],
     });
 
-    const isAdmin = membership.role === 'admin';
     return {
       id: group.id,
       name: group.name,
       defaultLanguage: group.defaultLanguage,
       role: membership.role,
       visibility: group.visibility,
-      inviteUrl: isAdmin ? this.inviteUrl(group.inviteToken) : undefined,
-      pendingCount: isAdmin ? await Membership.count({ where: { groupId, status: 'pending' } }) : 0,
+      inviteUrl: isAdminViewer ? this.inviteUrl(group.inviteToken) : undefined,
+      pendingCount: isAdminViewer ? await Membership.count({ where: { groupId, status: 'pending' } }) : 0,
       members: memberDtos,
       // A group with any drawn edition can't be deleted (irreversible history).
       hasDrawnEdition: editions.some((e) => e.drawnAt != null),
