@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from './config/config.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { DatabaseModule } from './database/database.module';
@@ -18,9 +19,11 @@ import { DrawModule } from './draw/draw.module';
 import { HealthModule } from './health/health.module';
 import { MetaModule } from './meta/meta.module';
 import { PushModule } from './push/push.module';
+import { DigestModule } from './digest/digest.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule,
     CryptoModule,
     DatabaseModule,
@@ -40,6 +43,7 @@ import { PushModule } from './push/push.module';
     HealthModule,
     MetaModule,
     PushModule,
+    DigestModule,
   ],
 })
 export class AppModule {}

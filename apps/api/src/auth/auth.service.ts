@@ -33,6 +33,8 @@ export interface SessionUser {
   profileComplete: boolean;
   /** True when this address is in INSTANCE_ADMINS — gates the read-only admin view. */
   isInstanceAdmin: boolean;
+  /** Opted out of the weekly unread-chat digest. */
+  digestOptOut: boolean;
 }
 
 export interface VerifyResult {
@@ -244,7 +246,7 @@ export class AuthService {
 
   async updateProfile(
     userId: string,
-    patch: { firstName?: string; lastName?: string | null; language?: string },
+    patch: { firstName?: string; lastName?: string | null; language?: string; digestOptOut?: boolean },
   ): Promise<SessionUser | null> {
     const user = await User.findByPk(userId);
     if (!user) return null;
@@ -253,6 +255,7 @@ export class AuthService {
     if (patch.language !== undefined) {
       user.language = this.i18n.normalize(patch.language);
     }
+    if (patch.digestOptOut !== undefined) user.digestOptOut = patch.digestOptOut;
     await user.save();
     return this.toSessionUser(user);
   }
@@ -266,6 +269,7 @@ export class AuthService {
       language: user.language,
       profileComplete: !!user.firstName && user.firstName.trim().length > 0,
       isInstanceAdmin: this.config.instanceAdmins.includes(user.email.toLowerCase()),
+      digestOptOut: user.digestOptOut,
     };
   }
 }

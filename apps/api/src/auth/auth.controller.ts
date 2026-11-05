@@ -91,6 +91,7 @@ export class AuthController {
       firstName: dto.firstName,
       lastName: dto.lastName ?? null,
       language: dto.language,
+      digestOptOut: dto.digestOptOut,
     });
     if (!updated) throw new UnauthorizedException();
     return { user: updated };

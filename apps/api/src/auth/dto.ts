@@ -55,4 +55,8 @@ export class ProfileDto {
   @IsString()
   @Length(2, 5)
   language?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  digestOptOut?: boolean;
 }
