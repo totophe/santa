@@ -67,6 +67,14 @@ export class CryptoService {
       .digest('hex');
   }
 
+  /** A keyed token for a no-login "unsubscribe from the digest" link (userId is public). */
+  digestUnsubToken(userId: string): string {
+    return createHmac('sha256', this.key)
+      .update('santa-digest-unsub:')
+      .update(userId)
+      .digest('hex');
+  }
+
   encrypt(plaintext: string): Sealed {
     const nonce = randomBytes(NONCE_BYTES);
     const cipher = createCipheriv(ALGO, this.key, nonce);

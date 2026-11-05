@@ -56,6 +56,12 @@ export class AdminController {
     return this.admin.archiveEdition(id, user);
   }
 
+  @Post('editions/:id/send-reminder')
+  @HttpCode(200)
+  sendReminder(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.admin.sendWishlistReminder(id, user);
+  }
+
   @Delete('groups/:groupId')
   deleteGroup(
     @CurrentUser() user: SessionUser,

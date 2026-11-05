@@ -221,6 +221,12 @@ function AdminPanel({ detail, reload }: { detail: EditionDetail; reload: () => P
         {detail.state === 'drawn' && !detail.chatOpen && (
           <button className="btn btn-soft" disabled={busy} onClick={() => act(() => api.openChat(detail.id), t('account.saved'))}>{t('edition.open_chat_now')}</button>
         )}
+        {detail.state !== 'archived' && (
+          <button className="btn btn-soft" disabled={busy} onClick={() => act(async () => {
+            const r = await api.sendReminder(detail.id);
+            setMsg(t('edition.remind_result', { reminded: r.reminded, skipped: r.skipped }));
+          })}>{t('edition.remind_lists')}</button>
+        )}
         {msg && <p className="muted" style={{ fontSize: 14 }}>{msg}</p>}
         {err && <p className="error">{err}</p>}
       </div>

@@ -153,6 +153,13 @@ export class MessagesService {
       where: { editionId },
       order: [['createdAt', 'ASC']],
     });
+
+    // Viewing the open chat marks it read (drives the "unread" digest).
+    if (ctx.participant) {
+      ctx.participant.chatReadAt = new Date();
+      await ctx.participant.save();
+    }
+
     return {
       locked: false as const,
       myAlias,

@@ -16,6 +16,7 @@ import {
   Participant,
   Thread,
   User,
+  Wishlist,
 } from '../database/models';
 import { BadRequestException } from '@nestjs/common';
 import { CryptoService } from '../crypto/crypto.service';
@@ -128,6 +129,54 @@ export class AdminService {
       this.logger.error(`resend failed: ${(err as Error).message}`);
     }
     return { ok: true as const };
+  }
+
+  // ─── Wishlist reminder ────────────────────────────────────────────────
+
+  /**
+   * Email the confirmed participants who haven't finished their wishlist
+   * (empty / draft — a published list or "Surprise me!" counts as done). A
+   * per-person 7-day guard means no one is nudged twice in a week, so an admin
+   * can press again safely and only the newly-incomplete are emailed.
+   */
+  async sendWishlistReminder(editionId: string, admin: SessionUser): Promise<{ reminded: number; skipped: number }> {
+    const ctx = await this.access.getEditionContext(editionId, admin.id);
+    await this.access.requireAdmin(ctx.group.id, admin.id);
+    if (ctx.edition.state === 'archived') throw new ConflictException('archived');
+
+    const confirmed = await Participant.findAll({ where: { editionId, status: 'confirmed' } });
+    const wishlists = await Wishlist.findAll({ where: { participantId: confirmed.map((p) => p.id) } });
+    const stateByParticipant = new Map(wishlists.map((w) => [w.participantId, w.state]));
+    const incomplete = confirmed.filter((p) => {
+      const s = stateByParticipant.get(p.id);
+      return s !== 'published' && s !== 'surprise'; // null / draft → not done
+    });
+
+    let reminded = 0;
+    let skipped = 0;
+    const link = `${this.config.appUrl}/editions/${editionId}`;
+    for (const p of incomplete) {
+      try {
+        // Throws 429 (before recording) if this person was reminded in the last 7 days.
+        await this.rateLimit.hit('wishlist_reminder', p.id, 1, 7 * DAY);
+      } catch {
+        skipped++;
+        continue;
+      }
+      const u = p.userId ? await User.findByPk(p.userId) : null;
+      const to = u?.email ?? p.invitedEmail;
+      if (!to) { skipped++; continue; }
+      if (await this.suppression.isSuppressed(to)) { skipped++; continue; }
+      const lang = this.i18n.normalize(u?.language ?? ctx.group.defaultLanguage);
+      try {
+        await this.mail.sendWishlistReminder(to, ctx.edition.name, link, lang, ctx.edition.theme);
+        reminded++;
+      } catch (err) {
+        this.logger.error(`wishlist reminder failed: ${(err as Error).message}`);
+        skipped++;
+      }
+    }
+    return { reminded, skipped };
   }
 
   // ─── Remove participant (+ departure repair) ──────────────────────────

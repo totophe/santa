@@ -7,8 +7,9 @@ import * as m0004 from './migrations/0004-group-join';
 import * as m0005 from './migrations/0005-edition-exclusions';
 import * as m0006 from './migrations/0006-push-subscriptions';
 import * as m0007 from './migrations/0007-group-email-invites';
+import * as m0008 from './migrations/0008-user-digest-opt-out';
 
-const MIGRATIONS = [m0001, m0002, m0003, m0004, m0005, m0006, m0007];
+const MIGRATIONS = [m0001, m0002, m0003, m0004, m0005, m0006, m0007, m0008];
 
 /**
  * Minimal forward-only storage backed by a migrations_meta table. Umzug's

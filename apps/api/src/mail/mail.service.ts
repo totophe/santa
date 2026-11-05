@@ -134,6 +134,35 @@ export class MailService {
     await this.send({ to, subject, ...this.button(body, button, link) });
   }
 
+  /** E7 — a manager nudge to finish your wishlist. */
+  async sendWishlistReminder(to: string, editionName: string, link: string, lang: Language, theme: string): Promise<void> {
+    const subject = this.i18n.t('email.wishlist_reminder.subject', { lang, theme, vars: { edition: editionName } });
+    const body = this.i18n.t('email.wishlist_reminder.body', { lang, theme, vars: { edition: editionName } });
+    const button = this.i18n.t('email.wishlist_reminder.button', { lang, theme });
+    await this.send({ to, subject, ...this.button(body, button, link) });
+  }
+
+  /**
+   * E8 — weekly digest of unread GROUP-chat messages (alias-only; never a
+   * giver→recipient correlation). `lines` are pre-rendered "emoji alias: body".
+   */
+  async sendChatDigest(to: string, editionName: string, lines: string[], link: string, unsubscribeUrl: string, lang: Language): Promise<void> {
+    const subject = this.i18n.t('email.chat_digest.subject', { lang, vars: { edition: editionName } });
+    const intro = this.i18n.t('email.chat_digest.intro', { lang, vars: { edition: editionName } });
+    const button = this.i18n.t('action.open_chat', { lang });
+    const unsub = this.i18n.t('email.chat_digest.unsubscribe', { lang });
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const items = lines.map((l) => `<p style="margin:4px 0">${esc(l)}</p>`).join('');
+    const html = this.wrap(`
+      <p>${intro}</p>
+      <div style="background:#f6f4ef;border-radius:12px;padding:12px 16px;margin:12px 0">${items}</div>
+      <p><a href="${link}" style="display:inline-block;background:#C8102E;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:700">${button}</a></p>
+      <p style="color:#888;font-size:12px"><a href="${unsubscribeUrl}" style="color:#888">${unsub}</a></p>
+    `);
+    const text = `${intro}\n\n${lines.join('\n')}\n\n${button}: ${link}\n\n${unsub}: ${unsubscribeUrl}`;
+    await this.send({ to, subject, html, text });
+  }
+
   private button(body: string, button: string, link: string): { html: string; text: string } {
     const html = this.wrap(`
       <p>${body}</p>

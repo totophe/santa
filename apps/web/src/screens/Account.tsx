@@ -85,8 +85,38 @@ export function Account({
 
       {meta?.pushEnabled && <NotificationsCard publicKey={meta.pushPublicKey} />}
 
+      <DigestCard user={user} onUpdated={onUpdated} />
+
       <button className="btn btn-ghost" onClick={onSignedOut}>{t('action.sign_out')}</button>
       <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={remove}>{t('action.delete_account')}</button>
+    </div>
+  );
+}
+
+function DigestCard({ user, onUpdated }: { user: SessionUser; onUpdated: (u: SessionUser) => void }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const on = !user.digestOptOut;
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      // New opt-out value = the current on-state (turning the box off opts out).
+      const { user: u } = await api.updateProfile(user.firstName ?? '', user.lastName, user.language, on);
+      onUpdated(u);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>{t('account.digest_label')}</div>
+      <p className="muted" style={{ fontSize: 14 }}>{t('account.digest_hint')}</p>
+      <label style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 15 }}>
+        <input type="checkbox" checked={on} disabled={busy} onChange={toggle} />
+        <span>{t('account.digest_label')}</span>
+      </label>
     </div>
   );
 }

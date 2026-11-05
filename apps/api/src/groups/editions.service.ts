@@ -15,6 +15,7 @@ import {
   Membership,
   Participant,
   User,
+  Wishlist,
 } from '../database/models';
 import { randomUrlToken } from '../auth/tokens';
 import type { SessionUser } from '../auth/auth.service';
@@ -68,6 +69,14 @@ export class EditionsService {
     const members = await Membership.findAll({ where: { groupId: ctx.group.id } });
     const roleByUser = new Map(members.map((m) => [m.userId, m.role]));
 
+    // Wishlist state per participant (null/draft → not_yet).
+    const wishlists = await Wishlist.findAll({ where: { participantId: participants.map((p) => p.id) } });
+    const wlByParticipant = new Map(wishlists.map((w) => [w.participantId, w.state]));
+    const wishlistStateOf = (participantId: string): 'published' | 'surprise' | 'not_yet' => {
+      const s = wlByParticipant.get(participantId);
+      return s === 'published' ? 'published' : s === 'surprise' ? 'surprise' : 'not_yet';
+    };
+
     const rows = await Promise.all(
       participants.map(async (p) => {
         const u = p.userId ? await User.findByPk(p.userId) : null;
@@ -99,7 +108,7 @@ export class EditionsService {
       status: r.p.drawCheckedAt
         ? 'draw_checked'
         : (r.p.status as 'invited' | 'confirmed'),
-      wishlistState: 'not_yet',
+      wishlistState: wishlistStateOf(r.p.id),
     }));
 
     // Waiting first: invited, then confirmed, then draw checked.

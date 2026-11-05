@@ -6,6 +6,7 @@ export interface SessionUser {
   language: string;
   profileComplete: boolean;
   isInstanceAdmin: boolean;
+  digestOptOut: boolean;
 }
 
 export interface ThemeInfo {
@@ -255,6 +256,7 @@ export const api = {
   saveEditionSettings: (id: string, body: Record<string, unknown>) =>
     request<{ ok: true }>(`/api/editions/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   archiveEditionReq: (id: string) => request<{ ok: true }>(`/api/editions/${id}/archive`, { method: 'POST' }),
+  sendReminder: (id: string) => request<{ reminded: number; skipped: number }>(`/api/editions/${id}/send-reminder`, { method: 'POST' }),
 
   edition: (id: string) => request<EditionDetail>(`/api/editions/${id}`),
   participants: (id: string) =>
@@ -314,10 +316,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, code, sharedDevice }),
     }),
-  updateProfile: (firstName: string, lastName: string | null, language: string) =>
+  updateProfile: (firstName: string, lastName: string | null, language: string, digestOptOut?: boolean) =>
     request<{ user: SessionUser }>('/api/auth/profile', {
       method: 'PUT',
-      body: JSON.stringify({ firstName, lastName, language }),
+      body: JSON.stringify({ firstName, lastName, language, ...(digestOptOut !== undefined ? { digestOptOut } : {}) }),
     }),
   signOut: () => request<{ ok: true }>('/api/auth/signout', { method: 'POST' }),
   deleteAccount: () => request<{ ok: true }>('/api/account', { method: 'DELETE' }),

@@ -39,6 +39,12 @@ export class User extends Model<
   @Default('en')
   declare language: CreationOptional<string>;
 
+  // Opt-out of the weekly unread-chat digest (sign-in/draw emails unaffected).
+  @Attribute(DataTypes.BOOLEAN)
+  @NotNull
+  @Default(false)
+  declare digestOptOut: CreationOptional<boolean>;
+
   @Attribute(DataTypes.DATE)
   declare lastSeenAt: Date | null;
 
